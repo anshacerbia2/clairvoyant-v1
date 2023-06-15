@@ -1,0 +1,34 @@
+.c-form-control {
+  display: block;
+  width: 100%;
+  padding: $c-input-padding-y $c-input-padding-x;
+  border: $c-input-border-width solid $c-input-border-color;
+  border-radius: $c-input-border-radius;
+  background-color: $c-input-bg;
+  color: $c-input-color;
+  font-family: $c-input-font-family;
+  font-size: $c-input-font-size;
+  line-height: normal;
+  appearance: none; // Fix appearance for date inputs in Safari
+
+  &:focus {
+    border-color: $c-input-focus-border-color;
+    background-color: $c-input-focus-bg;
+    color: $c-input-focus-color;
+    outline: 0;
+  }
+}
+
+.c-form-control-mask {
+  @include absolute();
+  display: block;
+  width: 100%;
+  border: none;
+  border-radius: $c-input-border-radius;
+  background-color: transparent;
+  color: $c-input-color;
+  font-family: $c-input-font-family;
+  font-size: $c-input-font-size;
+  line-height: normal;
+  transition: visibility 0s ease 0.25s;
+}

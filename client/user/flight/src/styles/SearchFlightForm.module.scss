@@ -1,0 +1,146 @@
+#SSBPassenger {
+  color: #74787d;
+  cursor: pointer;
+
+  &:focus {
+    caret-color: transparent;
+  }
+}
+
+#SSBTravelClass {
+  color: #74787d;
+  cursor: pointer;
+
+  &:focus {
+    caret-color: transparent;
+  }
+}
+
+#SSBPromoCode {
+  color: #74787d;
+}
+
+#SSBFlightSubmit {
+  height: 100%;
+  width: 100%;
+  background-color: #006ab3;
+  color: #fff;
+  border-radius: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 500;
+
+  &:hover {
+    background-color: #0d4f7c;
+  }
+}
+
+.col {
+  flex-grow: 1;
+  margin-left: 8px;
+  margin-right: 8px;
+}
+
+.radio,
+.checkbox {
+  position: relative;
+  padding-left: 28px;
+  color: #74787d;
+  font-size: 14px;
+  cursor: pointer;
+
+  input[type="radio"],
+  input[type="checkbox"] {
+    display: none;
+  }
+
+  input[type="radio"]:checked + .radiomark {
+    &::before {
+      border-color: #0064d2;
+    }
+
+    &::after {
+      transform: scale(1);
+    }
+  }
+
+  input[type="checkbox"]:checked + .checkmark {
+    &::before {
+      border-color: #0064d2;
+      background-color: #0064d2;
+    }
+
+    svg {
+      transform: scale(1);
+    }
+  }
+  .radiomark,
+  .checkmark {
+    position: absolute;
+    left: 0;
+    top: calc(50% - 12px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+  }
+  .radiomark {
+    &::before,
+    &::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+    }
+
+    &::before {
+      width: 18px;
+      height: 18px;
+      border: 1px solid #ccc;
+      transition: border-color 0.2s ease-in-out;
+    }
+
+    &::after {
+      width: 10px;
+      height: 10px;
+      background-color: #0064d2;
+      transform: scale(0);
+      transition: transform 0.2s ease-in-out;
+    }
+  }
+
+  .checkmark {
+    &::before {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border: 1px solid #ccc;
+      border-radius: 2px;
+      background-color: transparent;
+      transition: all 0.2s ease-in-out;
+    }
+
+    svg {
+      color: #fff;
+      font-size: 15px;
+      z-index: 1;
+      transform: scale(0);
+      transition: transform 0.2s ease-in-out;
+    }
+  }
+}
+
+.add-segment-wrapper {
+  margin-bottom: 30px;
+
+  & > button {
+    color: #74787d;
+    font-size: 14px;
+
+    &:hover {
+      background-color: transparent;
+      color: rgb(0 106 179);
+    }
+  }
+}

@@ -1,0 +1,114 @@
+#AirportListDropdown {
+  position: absolute;
+  left: 0;
+  will-change: top, opacity;
+  width: 400px;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 4%), 0 0 16px rgb(0 0 0 / 15%);
+  border-radius: 4px;
+  opacity: 0;
+  z-index: 3;
+  transition: top 0.1s ease-in-out, opacity 0.1s ease-in-out;
+}
+
+.arrow {
+  position: absolute;
+  left: 20px;
+  top: -8px;
+  // z-index: 1;
+  height: 16px;
+  width: 16px;
+  transform: rotate(45deg);
+  background-color: #fff;
+  box-shadow: -1px -1px 5px 1px rgba(0, 0, 0, 0.04);
+}
+
+.dropdown-wrapper {
+  position: relative;
+  // height: 316px;
+  padding: 8px 0;
+  z-index: 1;
+  background-color: #fff;
+  border-radius: 4px;
+  overflow: hidden;
+  user-select: none;
+
+  div {
+    max-height: 450px;
+    overflow: auto;
+
+    &::-webkit-scrollbar {
+      width: 7px;
+      // height: 10px;
+    }
+
+    /* Style the track of the scrollbar */
+    // &::-webkit-scrollbar-track {
+    //   background-color: #f2f2f2;
+    // }
+
+    /* Style the thumb of the scrollbar */
+    &::-webkit-scrollbar-thumb {
+      background-color: #d6d6d6;
+      border-radius: 5px;
+    }
+
+    /* Style the corner of the scrollbar */
+    // &::-webkit-scrollbar-corner {
+    //   background-color: #000;
+    // }
+    .list-category {
+      display: flex;
+      font-size: 14px;
+      font-weight: 500;
+      color: #fff;
+      background-color: #fff;
+      cursor: default;
+
+      div {
+        width: 270px;
+        border-bottom-right-radius: 50px;
+        padding: 4px 12px 4px 44px;
+        display: inline-block;
+        background-color: #006ab3;
+      }
+    }
+
+    .dropdown-item {
+      position: relative;
+      font-size: 14px;
+      padding: 4px 12px 4px 44px;
+      margin: 4px 0;
+      transition: background-color 0.15s ease, color 0.15s ease;
+      color: #74787d;
+
+      svg {
+        position: absolute;
+        left: 12px;
+        top: 8px;
+        transform: rotate(0deg);
+        color: #9a9c9f;
+        transition: transform 0.15s ease, color 0.15s ease;
+      }
+
+      &:hover {
+        background-color: #f0f0f0;
+        color: #07a0dc;
+        cursor: pointer;
+
+        svg {
+          transform: rotate(45deg);
+          color: #07a0dc;
+        }
+      }
+    }
+
+    .list-category ~ .dropdown-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .item-not-found {
+      font-size: 14px;
+      padding: 4px 12px;
+    }
+  }
+}

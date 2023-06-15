@@ -1,0 +1,74 @@
+.c-form-floating {
+  position: relative;
+
+  &.inc-img {
+    > .c-form-control,
+    > .c-form-control-mask {
+      height: $c-form-floating-height;
+      padding: $c-form-floating-inc-img-padding;
+      text-overflow: ellipsis;
+    }
+  }
+
+  > .c-form-control {
+    position: relative;
+    background-color: transparent;
+    z-index: 1;
+
+    &:focus ~ .c-control-label-wrapper > .c-control-label {
+      @include focused-label();
+    }
+
+    &:focus ~ .c-form-control-mask {
+      transition: none;
+      visibility: hidden;
+    }
+  }
+
+  > .c-form-control,
+  > .c-form-control-mask {
+    &::placeholder {
+      color: transparent;
+    }
+  }
+
+  > .c-control-label-wrapper {
+    @include full-absolute();
+    display: flex;
+    align-items: center;
+    height: $c-form-floating-height;
+    padding-left: $c-form-floating-padding-left;
+
+    > .c-control-label {
+      margin-left: -6px;
+      padding: 0 6px;
+      background-color: $c-input-bg;
+      color: $c-input-color;
+      font-size: $c-input-font-size;
+      line-height: normal;
+      transform: translateY(0);
+      transition: 0.2s all ease;
+    }
+  }
+
+  > .c-form-control:not(:placeholder-shown)
+    ~ .c-control-label-wrapper
+    > .c-control-label,
+  > .c-form-control-mask:not(:placeholder-shown)
+    ~ .c-control-label-wrapper
+    > .c-control-label {
+    @include focused-label();
+  }
+
+  // start-doc class added by javascript (focused-input & active-input)
+  > .c-form-control.focused-input {
+    border-color: $c-input-focus-border-color;
+  }
+
+  > .c-form-control.focused-input
+    ~ .c-control-label-wrapper
+    > .c-control-label {
+    @include focused-label();
+  }
+  // end-doc class added by javascript (focused-input & active-input)
+}

@@ -1,0 +1,15 @@
+{
+  "Index": {
+    "from": "Dari",
+    "to": "Ke",
+    "departureDate": "Pergi",
+    "returnDate": "Pulang",
+    "passenger": "Penumpang",
+    "travelClass": "Kelas Kabin",
+    "promoCode": "Kode Promo",
+    "oneWay": "Sekali Jalan",
+    "roundTrip": "Pulang-Pergi",
+    "multiCity": "Multi Kota",
+    "directFlights": "Penerbangan Langsung"
+  }
+}

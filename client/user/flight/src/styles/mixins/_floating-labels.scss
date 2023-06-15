@@ -1,0 +1,7 @@
+@mixin focused-label {
+  color: $c-form-floating-focus-label-color;
+  font-size: $c-form-floating-focus-label-font-size;
+  transform: $c-form-floating-focus-label-transform;
+  z-index: 1;
+  cursor: default; // for datepicker
+}

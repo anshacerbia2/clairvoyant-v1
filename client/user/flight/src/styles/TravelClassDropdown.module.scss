@@ -1,0 +1,30 @@
+.dropdown-wrapper {
+  position: relative;
+  padding: 8px 0;
+  z-index: 1;
+  background-color: #fff;
+  border-radius: 4px;
+  color: #74787d;
+  cursor: pointer;
+
+  .dropdown-item {
+    font-size: 14px;
+    padding: 4px 12px;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    margin-bottom: 4px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    &:hover {
+      background-color: #f0f0f0;
+      color: #07a0dc;
+    }
+  }
+
+  .dropdown-item.current {
+    background-color: #f0f0f0;
+    color: #07a0dc;
+  }
+}

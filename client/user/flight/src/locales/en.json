@@ -1,0 +1,15 @@
+{
+  "Index": {
+    "from": "From",
+    "to": "To",
+    "departureDate": "Departure Date",
+    "returnDate": "Return Date",
+    "passenger": "Passenger",
+    "travelClass": "Cabin Class",
+    "promoCode": "Promo Code",
+    "oneWay": "One Way",
+    "roundTrip": "Round Trip",
+    "multiCity": "Multi City",
+    "directFlights": "Direct Flights"
+  }
+}

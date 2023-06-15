@@ -1,0 +1,35 @@
+#DropdownTransition {
+  position: absolute;
+  left: 0;
+  will-change: top, opacity;
+  width: 100%;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 4%), 0 0 16px rgb(0 0 0 / 15%);
+  border-radius: 4px;
+  opacity: 0;
+  z-index: 3;
+  transition: top 0.1s ease-in-out, opacity 0.1s ease-in-out;
+}
+
+.arrow {
+  position: absolute;
+  left: 20px;
+  top: -8px;
+  // z-index: 1;
+  height: 16px;
+  width: 16px;
+  transform: rotate(45deg);
+  background-color: #fff;
+  box-shadow: -1px -1px 5px 1px rgba(0, 0, 0, 0.04);
+}
+
+.arrow-date-picker {
+  position: absolute;
+  right: 14px;
+  bottom: -8px;
+  z-index: -1;
+  height: 16px;
+  width: 16px;
+  transform: rotate(45deg);
+  background-color: #fff;
+  box-shadow: 0 3px 3px 1px rgb(0 0 0 / 4%);
+}
