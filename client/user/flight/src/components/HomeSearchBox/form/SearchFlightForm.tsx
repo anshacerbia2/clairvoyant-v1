@@ -154,22 +154,22 @@ const SearchFlightForm: React.FC = () => {
 
   const debouncedSearchKey = useDebounce(state!.searchKey, 200);
 
-  useEffect(() => {
-    const fetchFilteredAirportList = async () => {
-      const searchKey = debouncedSearchKey[state!.segmentIdx];
-      const key = searchKey.origin || searchKey.destination;
+  const fetchFilteredAirportList = async () => {
+    const searchKey = debouncedSearchKey[state!.segmentIdx];
+    const key = searchKey.origin || searchKey.destination;
 
-      if (key) {
-        const response = await axios.get(
-          `http://localhost:4002/airports-and-areas?search=${key}`
-        );
-        if (response.status === 200) {
-          console.log(response.data);
-          dispatch(setFilteredAirportList(response.data));
-        }
+    if (key) {
+      const response = await axios.get(
+        `http://localhost:4002/airports-and-areas?search=${key}`
+      );
+      if (response.status === 200) {
+        console.log(response.data);
+        dispatch(setFilteredAirportList(response.data));
       }
-    };
+    }
+  };
 
+  useEffect(() => {
     fetchFilteredAirportList();
   }, [debouncedSearchKey]);
 
@@ -485,6 +485,7 @@ const SearchFlightForm: React.FC = () => {
       dispatch(setReturnDate(state!.segments[0].departureDate));
       if (value === "oneWay" || value === "roundTrip") {
         dispatch(resetSegments());
+        dispatch(setSegmentIdx(0));
         dispatch(resetIsInitDepartureDate());
         dispatch(setIsInitReturnDate(true));
         dispatch(resetSearchKey([state!.searchKey[0]]));
