@@ -22,3 +22,21 @@ export const useElementSize = (
 
   return size;
 };
+
+export const useDebounce = <T>(value: T, delay: number): T => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  const [counter, setCounter] = useState(0);
+
+  useEffect(() => {
+    setCounter((prevState) => prevState + 1);
+    const timeoutId = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [value, delay]);
+
+  return counter === 1 ? value : debouncedValue;
+};

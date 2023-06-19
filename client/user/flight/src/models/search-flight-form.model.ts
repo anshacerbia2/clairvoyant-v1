@@ -10,8 +10,8 @@ export interface ISearchKeyStates {
 }
 
 export interface ISegmentsStates {
-  origin: IAirportList;
-  destination: IAirportList;
+  origin: IAirportsOrAreas;
+  destination: IAirportsOrAreas;
   departureDate: Date;
 }
 
@@ -41,7 +41,8 @@ export interface ISearchFlightFormInputStates {
   airportListDropdowntype: string;
   calendarType: string;
   segmentIdx: number;
-  airportList: IAirportList[];
+  popularAirportList: IAirportsOrAreas[];
+  filteredAirportList: IAirportsOrAreas[];
   inputDynamicWidth: number;
 }
 
@@ -53,21 +54,26 @@ export interface ISearchFlightFormDropdown {
   travelClassDropdown: boolean;
 }
 
-export interface IAirportList {
-  [key: string]: string | number | null;
+export interface IAirportsOrAreas {
+  [key: string]: any;
   id: number | null;
-  city: string;
-  country: string;
-  name: string;
   code: string;
+  name: string;
+  location: string;
+  country: string;
+  shortLocation?: string;
+  iataCode?: string;
+  airports?: string[];
+  areaCode?: string;
+  airportIcaoCode?: string;
 }
 
-export const defaultAirport: Readonly<IAirportList> = {
+export const defaultAirport: Readonly<IAirportsOrAreas> = {
   id: null,
-  city: "",
-  country: "",
-  name: "",
   code: "",
+  name: "",
+  location: "",
+  country: "",
 };
 
 export interface ITravelClass {

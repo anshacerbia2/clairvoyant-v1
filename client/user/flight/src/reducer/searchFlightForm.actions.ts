@@ -1,5 +1,5 @@
 import {
-  IAirportList,
+  IAirportsOrAreas,
   ISearchFlightFormDropdown,
   ISearchFlightFormInputStates,
   ISearchKeyStates,
@@ -10,7 +10,8 @@ import {
   ADD_ISINIT_DEPARTURE_DATE,
   ADD_SEARCH_KEY,
   ADD_SEGMENTS,
-  FETCH_AIRPORT_LIST,
+  FETCH_POPULAR_AIRPORT_LIST,
+  FETCH_FILTERED_AIRPORT_LIST,
   FORCE_CLOSE_ALL,
   FORCE_CLOSE_ALL_WITH_EXCEPTION,
   FORCE_CLOSE_CURRENT,
@@ -33,10 +34,21 @@ import {
   SET_TRIP_TYPE,
   SHOW_DROPDOWN_CURRENT,
 } from "./saerchFlightForm.constants";
-export const setAirportList = (airportList: IAirportList[]) => {
+export const setPopularAirportList = (
+  popularAirportList: IAirportsOrAreas[]
+) => {
   return {
-    type: FETCH_AIRPORT_LIST,
-    payload: airportList,
+    type: FETCH_POPULAR_AIRPORT_LIST,
+    payload: popularAirportList,
+  };
+};
+
+export const setFilteredAirportList = (
+  filteredAirportList: IAirportsOrAreas[]
+) => {
+  return {
+    type: FETCH_FILTERED_AIRPORT_LIST,
+    payload: filteredAirportList,
   };
 };
 
@@ -56,7 +68,7 @@ export const setSegmentIdx = (value: number) => {
 
 export const setSegments = (
   key: string,
-  value: IAirportList | null,
+  value: IAirportsOrAreas | null,
   segmentIdx: number,
   state: ISegmentsStates[],
   date?: Date

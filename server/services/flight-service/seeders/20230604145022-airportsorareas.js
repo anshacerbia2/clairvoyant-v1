@@ -12,14 +12,18 @@ module.exports = {
      *   isBetaMember: false
      * }], {});
      */
-    const data = require("../data/airports-or-areas.json").map((v) => {
-      return {
-        code: v.code,
-        updatedAt: new Date(),
-        createdAt: new Date(),
-      };
-    });
-    await queryInterface.bulkInsert("AirportsOrAreas", data, {});
+    try {
+      const data = require("../data/airports-or-areas.json").map((v) => {
+        return {
+          code: v.code,
+          updatedAt: new Date(),
+          createdAt: new Date(),
+        };
+      });
+      await queryInterface.bulkInsert("AirportsOrAreas", data, {});
+    } catch (error) {
+      console.log(error);
+    }
   },
 
   async down(queryInterface, Sequelize) {

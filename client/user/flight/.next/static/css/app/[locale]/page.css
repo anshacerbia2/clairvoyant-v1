@@ -131,6 +131,7 @@
 .AirportListDropdown_dropdown-wrapper__cOMBE div {
   max-height: 450px;
   overflow: auto;
+  scroll-behavior: smooth;
   /* Style the track of the scrollbar */
   /* Style the thumb of the scrollbar */
   /* Style the corner of the scrollbar */
@@ -162,8 +163,8 @@
   font-size: 14px;
   padding: 4px 12px 4px 44px;
   margin: 4px 0;
-  transition: background-color 0.15s ease, color 0.15s ease;
   color: #74787d;
+  cursor: pointer;
 }
 .AirportListDropdown_dropdown-wrapper__cOMBE div .AirportListDropdown_dropdown-item__24xjc svg {
   position: absolute;
@@ -171,14 +172,13 @@
   top: 8px;
   transform: rotate(0deg);
   color: #9a9c9f;
-  transition: transform 0.15s ease, color 0.15s ease;
+  transition: transform 0.5s ease, color 0.15s ease;
 }
-.AirportListDropdown_dropdown-wrapper__cOMBE div .AirportListDropdown_dropdown-item__24xjc:hover {
+.AirportListDropdown_dropdown-wrapper__cOMBE div .AirportListDropdown_dropdown-item__24xjc.AirportListDropdown_active____MO0, .AirportListDropdown_dropdown-wrapper__cOMBE div .AirportListDropdown_dropdown-item__24xjc:hover {
   background-color: #f0f0f0;
   color: #07a0dc;
-  cursor: pointer;
 }
-.AirportListDropdown_dropdown-wrapper__cOMBE div .AirportListDropdown_dropdown-item__24xjc:hover svg {
+.AirportListDropdown_dropdown-wrapper__cOMBE div .AirportListDropdown_dropdown-item__24xjc.AirportListDropdown_active____MO0 svg, .AirportListDropdown_dropdown-wrapper__cOMBE div .AirportListDropdown_dropdown-item__24xjc:hover svg {
   transform: rotate(45deg);
   color: #07a0dc;
 }

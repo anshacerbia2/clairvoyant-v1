@@ -5,7 +5,8 @@ import {
   ADD_ISINIT_DEPARTURE_DATE,
   ADD_SEARCH_KEY,
   ADD_SEGMENTS,
-  FETCH_AIRPORT_LIST,
+  FETCH_POPULAR_AIRPORT_LIST,
+  FETCH_FILTERED_AIRPORT_LIST,
   FORCE_CLOSE_ALL,
   FORCE_CLOSE_ALL_WITH_EXCEPTION,
   FORCE_CLOSE_CURRENT,
@@ -40,7 +41,7 @@ import {
   defaultTravelClass,
 } from "@/models/search-flight-form.model";
 import type {
-  IAirportList,
+  IAirportsOrAreas,
   ISearchFlightFormChildrenRef,
   ISearchFlightFormInputStates,
   ISearchFlightFormDropdown,
@@ -107,7 +108,8 @@ export const createInitialState = () => {
     airportListDropdowntype: "origin-1",
     calendarType: "departure-1",
     segmentIdx: 0,
-    airportList: [],
+    popularAirportList: [],
+    filteredAirportList: [],
     inputDynamicWidth: 260.83,
   };
 };
@@ -117,10 +119,15 @@ const searchFlightFormReducer = (
   action: Action
 ) => {
   switch (action.type) {
-    case FETCH_AIRPORT_LIST:
+    case FETCH_POPULAR_AIRPORT_LIST:
       return {
         ...state,
-        airportList: action.payload,
+        popularAirportList: action.payload,
+      };
+    case FETCH_FILTERED_AIRPORT_LIST:
+      return {
+        ...state,
+        filteredAirportList: action.payload,
       };
     case SET_DYNAMIC_INPUT_WIDTH:
       return {
@@ -255,6 +262,8 @@ const searchFlightFormReducer = (
         ...state,
         isInitReturnDate: action.payload,
       };
+    default:
+      return state;
   }
 };
 

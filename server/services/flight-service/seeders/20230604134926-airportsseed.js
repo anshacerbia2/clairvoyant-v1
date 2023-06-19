@@ -12,32 +12,36 @@ module.exports = {
      *   isBetaMember: false
      * }], {});
      */
-    const data = require("../data/airports-or-areas.json")
-      .filter((obj) => obj.airportDisplay !== null)
-      .map((v) => {
-        const {
-          code,
-          name,
-          location,
-          shortLocation,
-          country,
-          areaCode,
-          airportIcaoCode,
-        } = v.airportDisplay;
-        return {
-          code,
-          name,
-          location,
-          shortLocation,
-          country,
-          areaCode,
-          airportIcaoCode,
-          score: v.score,
-          updatedAt: new Date(),
-          createdAt: new Date(),
-        };
-      });
-    await queryInterface.bulkInsert("Airports", data, {});
+    try {
+      const data = require("../data/airports-or-areas.json")
+        .filter((obj) => obj.airportDisplay !== null)
+        .map((v) => {
+          const {
+            code,
+            name,
+            location,
+            shortLocation,
+            country,
+            areaCode,
+            airportIcaoCode,
+          } = v.airportDisplay;
+          return {
+            code,
+            name,
+            location,
+            shortLocation,
+            country,
+            areaCode,
+            airportIcaoCode,
+            score: v.score,
+            updatedAt: new Date(),
+            createdAt: new Date(),
+          };
+        });
+      await queryInterface.bulkInsert("Airports", data, {});
+    } catch (error) {
+      console.log(error);
+    }
   },
 
   async down(queryInterface, Sequelize) {

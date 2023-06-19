@@ -1,6 +1,13 @@
 "use client";
 import styles from "@/styles/SearchFlightForm.module.scss";
-import React, { useEffect, useReducer, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useReducer,
+  useRef,
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
 import { useRouter } from "next/router";
 import Image from "next/image";
 import axios, { AxiosResponse } from "axios";
@@ -38,7 +45,7 @@ import {
   defaultTravelClass,
 } from "@/models/search-flight-form.model";
 import type {
-  IAirportList,
+  IAirportsOrAreas,
   ISearchFlightFormChildrenRef,
   ISearchFlightFormInputStates,
   ISearchFlightFormDropdown,
@@ -54,7 +61,7 @@ import {
   resetIsInitDepartureDate,
   resetSearchKey,
   resetSegments,
-  setAirportList,
+  setPopularAirportList,
   setAirportListDropdowntype,
   setCalendarType,
   setInputDynamicWidth,
@@ -70,8 +77,9 @@ import {
   setTravelClass,
   setTripType,
   showDropdownCurrent,
+  setFilteredAirportList,
 } from "@/reducer/searchFlightForm.actions";
-
+import { useDebounce } from "@/hooks";
 const initDate = createNewDate(
   new Date().getFullYear(),
   new Date().getMonth(),
@@ -109,17 +117,61 @@ const SearchFlightForm: React.FC = () => {
     createInitialState
   );
 
+  // useEffect((): void | (() => void) => {
+  //   const handleKeyDown = (event: KeyboardEvent) => {
+  //     if (event.key == "Tab") {
+  //       event.preventDefault();
+  //     }
+  //   };
+  //   document.addEventListener("keydown", handleKeyDown);
+  //   return () => {
+  //     document.removeEventListener("keydown", handleKeyDown);
+  //   };
+  // }, []);
+
   useEffect((): void => {
     const fetchAirportList = async () => {
-      const response: AxiosResponse<IAirportList[]> = await axios.get<
-        IAirportList[]
-      >("http://localhost:4002/airport-list");
+      // const response: AxiosResponse<IAirportsOrAreas[]> = await axios.get<
+      //   IAirportsOrAreas[]
+      // >("http://localhost:4002/airport-list-popular");
+
+      const response = await axios.get(
+        "http://localhost:4002/airports-and-areas/popular"
+      );
       if (response.status === 200) {
-        dispatch(setAirportList(response.data));
+        // response.data.forEach((obj) => {
+        //   if (obj.airports) {
+        //     obj.airports = JSON.parse(obj.airports);
+        //   }
+        // });
+        console.log(response.data);
+
+        dispatch(setPopularAirportList(response.data));
       }
     };
     fetchAirportList();
   }, []);
+
+  const debouncedSearchKey = useDebounce(state!.searchKey, 200);
+
+  useEffect(() => {
+    const fetchFilteredAirportList = async () => {
+      const searchKey = debouncedSearchKey[state!.segmentIdx];
+      const key = searchKey.origin || searchKey.destination;
+
+      if (key) {
+        const response = await axios.get(
+          `http://localhost:4002/airports-and-areas?search=${key}`
+        );
+        if (response.status === 200) {
+          console.log(response.data);
+          dispatch(setFilteredAirportList(response.data));
+        }
+      }
+    };
+
+    fetchFilteredAirportList();
+  }, [debouncedSearchKey]);
 
   useEffect((): void | (() => void) => {
     if (
@@ -131,12 +183,12 @@ const SearchFlightForm: React.FC = () => {
       const handleClickOutside: EventListener = (event: Event): void => {
         const target = event.target as HTMLElement;
         // Notes: for checking closest element id using regex (return boolean)
-        const regexOrigin = /^SSBOrigin-[0-4]$/;
-        const regexDestination = /^SSBDestination-[0-4]$/;
-        const regexDeparture = /^SSBDeparture-[0-4]$/;
-        const mergedRegex = new RegExp(
-          `${regexOrigin.source}|${regexDestination.source}|${regexDeparture.source}`
-        );
+        // const regexOrigin = /^SSBOrigin-[0-4]$/;
+        // const regexDestination = /^SSBDestination-[0-4]$/;
+        // const regexDeparture = /^SSBDeparture-[0-4]$/;
+        // const mergedRegex = new RegExp(
+        //   `${regexOrigin.source}|${regexDestination.source}|${regexDeparture.source}`
+        // );
         // or:
         // const mergedRegex2 = new RegExp(
         //   `^SSBOrigin-[0-4]$|^SSBDestination-[0-4]$|^SSBDeparture-[0-4]$`
@@ -178,9 +230,9 @@ const SearchFlightForm: React.FC = () => {
           dispatch(forceCloseAll(state!.forceClose));
         }
       };
-      document.addEventListener("click", handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
       return () => {
-        document.removeEventListener("click", handleClickOutside);
+        document.removeEventListener("mousedown", handleClickOutside);
       };
     }
   }, [state!.showDropdown]);
@@ -221,9 +273,9 @@ const SearchFlightForm: React.FC = () => {
     }
   };
 
-  const getOriginOrDestinationValue = (value: IAirportList): string => {
-    const { id, city, country, name, code } = value;
-    return id ? `${city} (${code}), ${name}, ${country}` : "";
+  const getOriginOrDestinationValue = (value: IAirportsOrAreas): string => {
+    const { id, location, country, name, code } = value;
+    return id ? `${location} (${code}), ${name}, ${country}` : "";
   };
 
   const getPassengerValue = (): string => {
@@ -261,6 +313,16 @@ const SearchFlightForm: React.FC = () => {
   const handleHideDropdown = (dropdown: string): void => {
     setCurrentForceClose(dropdown, false);
     setCurrentDropDown(dropdown, false);
+    if (dropdown === "airportDropdown") {
+      const prefix = state!.airportListDropdowntype.split("-")[0];
+      const input = inputRef.current[prefix];
+      if (input && Array.isArray(input)) {
+        const element = input[state!.segmentIdx];
+        if (element) {
+          element.blur();
+        }
+      }
+    }
   };
 
   const setCurrentForceClose = (dropdown: string, value: boolean) => {
@@ -325,7 +387,7 @@ const SearchFlightForm: React.FC = () => {
 
   const changeOriginDestination = (
     prefix: string,
-    value: IAirportList
+    value: IAirportsOrAreas
   ): void => {
     prefix = prefix.split("-")[0];
     const currentInputRef = inputRef.current[prefix];
@@ -612,14 +674,15 @@ const SearchFlightForm: React.FC = () => {
                   state!.airportListDropdowntype === `origin-${segmentIdx}` ? (
                     <AirportListDropdown
                       ref={childrenRef.current.airportListDropdownRef}
-                      airportList={state!.airportList}
+                      popularAirportList={state!.popularAirportList}
+                      filteredAirportList={state!.filteredAirportList}
                       airportListDropdowntype="origin"
                       origin={segment.origin}
                       destination={segment.destination}
                       handleChange={changeOriginDestination}
                       hideDropdown={() => handleHideDropdown("airportDropdown")}
                       forceClose={state!.forceClose.airportDropdown}
-                      searchKey={state!.searchKey[segmentIdx].origin}
+                      searchKey={debouncedSearchKey[segmentIdx].origin}
                     />
                   ) : (
                     <></>
@@ -685,14 +748,15 @@ const SearchFlightForm: React.FC = () => {
                     `destination-${segmentIdx}` ? (
                     <AirportListDropdown
                       ref={childrenRef.current.airportListDropdownRef}
-                      airportList={state!.airportList}
+                      popularAirportList={state!.popularAirportList}
+                      filteredAirportList={state!.filteredAirportList}
                       airportListDropdowntype="destination"
                       origin={segment.origin}
                       destination={segment.destination}
                       handleChange={changeOriginDestination}
                       hideDropdown={() => handleHideDropdown("airportDropdown")}
                       forceClose={state!.forceClose.airportDropdown}
-                      searchKey={state!.searchKey[segmentIdx].destination}
+                      searchKey={debouncedSearchKey[segmentIdx].destination}
                     />
                   ) : (
                     <></>

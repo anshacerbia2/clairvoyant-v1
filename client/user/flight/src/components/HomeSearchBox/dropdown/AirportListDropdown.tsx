@@ -1,12 +1,13 @@
 import React, {
   forwardRef,
   MouseEvent,
+  Ref,
   useEffect,
   useRef,
   useState,
 } from "react";
 import styles from "@/styles/AirportListDropdown.module.scss";
-import type { IAirportList } from "@/models/search-flight-form.model";
+import type { IAirportsOrAreas } from "@/models/search-flight-form.model";
 import { defaultAirport } from "@/models/search-flight-form.model";
 import { MdOutlineLocationCity, MdLocalAirport } from "react-icons/md";
 import { transform } from "typescript";
@@ -14,18 +15,19 @@ import { symlink } from "fs";
 
 interface IAirportListDropdownProps {
   airportListDropdowntype: string;
-  origin: IAirportList;
-  destination: IAirportList;
-  handleChange: (prefix: string, value: IAirportList) => void;
+  origin: IAirportsOrAreas;
+  destination: IAirportsOrAreas;
+  handleChange: (prefix: string, value: IAirportsOrAreas) => void;
   hideDropdown: () => void;
   forceClose: boolean;
-  airportList: IAirportList[];
+  popularAirportList: IAirportsOrAreas[];
+  filteredAirportList: IAirportsOrAreas[];
   searchKey: string;
 }
 
 interface IMatchAirportListState {
-  popular: IAirportList[];
-  more: IAirportList[];
+  popular: IAirportsOrAreas[];
+  more: IAirportsOrAreas[];
 }
 
 const AirportListDropdown = React.forwardRef<
@@ -40,11 +42,13 @@ const AirportListDropdown = React.forwardRef<
       handleChange,
       hideDropdown,
       forceClose,
-      airportList,
+      popularAirportList,
+      filteredAirportList,
       searchKey,
     },
     ref
   ) => {
+    const dropdownItemRef = useRef<HTMLDivElement>(null);
     const [matchAirportList, setMatchAirportList] =
       useState<IMatchAirportListState>({
         popular: [],
@@ -53,6 +57,9 @@ const AirportListDropdown = React.forwardRef<
     const [opacity, setOpacity] = useState(0);
     const [show, setShow] = useState(false);
     const [temporaryHidden, setTemporaryHidden] = useState(false);
+    const [selectedDropdownIndex, setSelectedDropdownIndex] = useState<
+      null | number
+    >(null);
 
     useEffect((): void | (() => void) => {
       fadeIn();
@@ -65,81 +72,134 @@ const AirportListDropdown = React.forwardRef<
     }, [forceClose]);
 
     useEffect((): void => {
-      let filteredAirport = airportList;
+      setSelectedDropdownIndex(null);
+      let filteredPopular = popularAirportList;
+      let filteredMore = filteredAirportList;
       if (airportListDropdowntype === "origin" && destination.id) {
-        filteredAirport = airportList.filter(
+        filteredPopular = popularAirportList.filter(
+          (airport) => airport.id !== destination.id
+        );
+        filteredMore = filteredAirportList.filter(
           (airport) => airport.id !== destination.id
         );
       }
       if (airportListDropdowntype === "destination" && origin.id) {
-        filteredAirport = airportList.filter(
+        filteredPopular = popularAirportList.filter(
+          (airport) => airport.id !== origin.id
+        );
+        filteredMore = filteredAirportList.filter(
           (airport) => airport.id !== origin.id
         );
       }
+      // Handle filter for popular airports and areas
       if (searchKey.trim()) {
-        const isMatch = (airport: IAirportList) => {
-          for (const key in airport) {
-            const value = airport[key];
-            if (
-              typeof value === "string" &&
-              value.match(new RegExp(searchKey, "gi"))
-            ) {
-              return true;
-            }
-          }
-          return false;
-        };
-        const result = filteredAirport.filter(isMatch);
-        if (result.length) {
+        filteredPopular = filteredPopular.filter((obj) =>
+          [obj.code, obj.name, obj.location, obj.country].some((value) =>
+            value.match(new RegExp(searchKey, "gi"))
+          )
+        );
+        if (filteredPopular.length || filteredMore.length) {
           if (temporaryHidden) {
             setTemporaryHidden(false);
             fadeIn();
           }
-          const popular = result.filter((airport) => {
-            return (
-              airport.code === "JKTA" ||
-              airport.code === "TYOA" ||
-              airport.code === "DPS"
-            );
-          });
-          const more = result.filter((airport) => {
-            return (
-              airport.code !== "JKTA" &&
-              airport.code !== "TYOA" &&
-              airport.code !== "DPS"
-            );
-          });
-          setMatchAirportList({
-            popular,
-            more,
-          });
         } else {
           setTemporaryHidden(true);
           fadeOut();
         }
       } else {
-        const popular = filteredAirport.filter((airport) => {
-          return (
-            airport.code === "JKTA" ||
-            airport.code === "TYOA" ||
-            airport.code === "DPS"
-          );
-        });
-        setMatchAirportList({ ...matchAirportList, popular });
         if (temporaryHidden) {
           setTemporaryHidden(false);
           fadeIn();
         }
       }
-    }, [searchKey]);
+      setMatchAirportList({ popular: filteredPopular, more: filteredMore });
+    }, [searchKey, popularAirportList, filteredAirportList]);
+
+    useEffect((): void | (() => void) => {
+      const handleKeyDown = (event: KeyboardEvent) => {
+        console.log(event.key);
+        if (
+          event.key === "ArrowUp" ||
+          event.key === "ArrowDown" ||
+          event.key === "Tab"
+        ) {
+          event.preventDefault();
+          const dropdownContainer = dropdownItemRef?.current;
+          if (dropdownContainer) {
+            const dropdownItemsLength =
+              matchAirportList.popular.length +
+              matchAirportList.more.length -
+              1;
+            console.log(dropdownItemsLength, "length");
+
+            let currentIndex = selectedDropdownIndex;
+
+            if (currentIndex === null) {
+              if (event.key === "ArrowUp") {
+                currentIndex = dropdownItemsLength;
+              } else {
+                currentIndex = 0;
+              }
+            } else {
+              if (event.key === "ArrowDown" || event.key === "Tab") {
+                if (currentIndex === dropdownItemsLength) {
+                  currentIndex = 0;
+                } else {
+                  currentIndex++;
+                }
+              } else {
+                if (currentIndex === 0) {
+                  currentIndex = dropdownItemsLength;
+                } else {
+                  currentIndex--;
+                }
+              }
+            }
+            console.log(currentIndex, selectedDropdownIndex);
+            setSelectedDropdownIndex(currentIndex);
+            Array.from(dropdownContainer.children).forEach((child) => {
+              if ((child as HTMLElement).tabIndex === currentIndex) {
+                child.classList.add(styles["active"]);
+                dropdownContainer.scrollTop =
+                  (child as HTMLElement).offsetTop - 39;
+              } else {
+                child.classList.remove(styles["active"]);
+              }
+            });
+          }
+        }
+
+        if (event.key == "Enter") {
+          handleEnter();
+        }
+      };
+      document.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.removeEventListener("keydown", handleKeyDown);
+      };
+    }, [searchKey, selectedDropdownIndex, matchAirportList]);
+
+    const handleEnter = (): void => {
+      if (
+        selectedDropdownIndex !== null &&
+        typeof selectedDropdownIndex === "number"
+      ) {
+        const data = matchAirportList.popular.concat(matchAirportList.more)[
+          selectedDropdownIndex
+        ];
+        handleChange(airportListDropdowntype, data);
+        fadeOut();
+      }
+    };
 
     const handleClick = (event: MouseEvent): void => {
       event.stopPropagation();
       const value = event.currentTarget.getAttribute("data-value");
-      let data = airportList.find((airport) => airport.code === value);
+      let data = matchAirportList.popular
+        .concat(matchAirportList.more)
+        .find((obj) => obj.code === value);
       data = data?.code ? data : defaultAirport;
-      // console.log(data);
-
       handleChange(airportListDropdowntype, data);
       fadeOut();
     };
@@ -163,15 +223,15 @@ const AirportListDropdown = React.forwardRef<
     const matchFormatter = (
       code: string | null,
       name: string | null,
-      city: string | null,
+      location: string | null,
       country: string | null
     ): React.ReactNode => {
       let str = "";
       if (code && name) {
         str = code + " - " + name;
       }
-      if (city && country) {
-        str = city + ", " + country;
+      if (location && country) {
+        str = location + ", " + country;
       }
       if (!searchKey.trim()) {
         return str;
@@ -208,7 +268,7 @@ const AirportListDropdown = React.forwardRef<
       >
         <div className={styles["arrow"]}></div>
         <div className={styles["dropdown-wrapper"]}>
-          <div>
+          <div ref={dropdownItemRef}>
             {matchAirportList.popular.length ? (
               <div
                 className={styles["list-category"]}
@@ -220,41 +280,44 @@ const AirportListDropdown = React.forwardRef<
               <></>
             )}
             {matchAirportList.popular.length ? (
-              matchAirportList.popular.map((airport) => {
-                if (
-                  airport.code === "JKTA" ||
-                  airport.code === "TYOA" ||
-                  airport.code === "DPS"
-                ) {
-                  return (
-                    <div
-                      key={"CODE-popular-" + airport.code}
-                      className={styles["dropdown-item"]}
-                      data-value={airport.code}
-                      onClick={handleClick}
-                    >
-                      {airport.type === "CITY" ? (
-                        <MdOutlineLocationCity
-                          size={24}
-                          style={{ transform: "none" }}
-                        />
-                      ) : (
-                        <MdLocalAirport size={24} />
+              matchAirportList.popular.map((airport, airportIdx) => {
+                return (
+                  <div
+                    role="airportsandareas-option-item"
+                    tabIndex={airportIdx}
+                    key={"popular-airport-" + airport.code}
+                    className={styles["dropdown-item"]}
+                    data-value={airport.code}
+                    onClick={handleClick}
+                  >
+                    {!airport.areaCode ? (
+                      <MdOutlineLocationCity
+                        size={24}
+                        style={{ transform: "none" }}
+                      />
+                    ) : (
+                      <MdLocalAirport size={24} />
+                    )}
+                    <div style={{ fontWeight: 500 }}>
+                      {matchFormatter(
+                        null,
+                        null,
+                        airport.location,
+                        airport.country
                       )}
-                      <div style={{ fontWeight: 500 }}>
-                        {matchFormatter(
-                          null,
-                          null,
-                          airport.city,
-                          airport.country
-                        )}
-                      </div>
-                      <div>
-                        {matchFormatter(airport.code, airport.name, null, null)}
-                      </div>
                     </div>
-                  );
-                }
+                    <div>
+                      {matchFormatter(
+                        airport.code,
+                        airport.areaCode
+                          ? airport.name
+                          : `All airports in ${airport.name}`,
+                        null,
+                        null
+                      )}
+                    </div>
+                  </div>
+                );
               })
             ) : (
               <></>
@@ -270,51 +333,53 @@ const AirportListDropdown = React.forwardRef<
               <></>
             )}
             {matchAirportList.more.length && searchKey.trim() ? (
-              matchAirportList.more.map((airport) => {
-                if (
-                  airport.code !== "JKTA" &&
-                  airport.code !== "TYOA" &&
-                  airport.code !== "DPS"
-                ) {
-                  return (
-                    <div
-                      key={"CODE-more-" + airport.code}
-                      className={styles["dropdown-item"]}
-                      data-value={airport.code}
-                      onClick={handleClick}
-                    >
-                      {airport.type === "CITY" ? (
-                        <MdOutlineLocationCity
-                          size={24}
-                          style={{ transform: "none" }}
-                        />
-                      ) : (
-                        <MdLocalAirport size={24} />
+              matchAirportList.more.map((airport, airportIdx) => {
+                return (
+                  <div
+                    role="airportsandareas-option-item"
+                    tabIndex={airportIdx + matchAirportList.popular.length}
+                    key={"filtere-airport-" + airport.code}
+                    className={styles["dropdown-item"]}
+                    data-value={airport.code}
+                    onClick={handleClick}
+                  >
+                    {!airport.areaCode ? (
+                      <MdOutlineLocationCity
+                        size={24}
+                        style={{ transform: "none" }}
+                      />
+                    ) : (
+                      <MdLocalAirport size={24} />
+                    )}
+                    <div style={{ fontWeight: 500 }}>
+                      {matchFormatter(
+                        null,
+                        null,
+                        airport.location,
+                        airport.country
                       )}
-                      <div style={{ fontWeight: 500 }}>
-                        {matchFormatter(
-                          null,
-                          null,
-                          airport.city,
-                          airport.country
-                        )}
-                      </div>
-                      <div>
-                        {matchFormatter(airport.code, airport.name, null, null)}
-                      </div>
                     </div>
-                  );
-                }
+                    <div>
+                      {matchFormatter(
+                        airport.code,
+                        airport.areaCode
+                          ? airport.name
+                          : `All airports in ${airport.name}`,
+                        null,
+                        null
+                      )}
+                    </div>
+                  </div>
+                );
               })
             ) : (
               <></>
             )}
-            {!matchAirportList.popular.length &&
-              !matchAirportList.more.length && (
-                <div className={styles["item-not-found"]}>
-                  No result found for {searchKey}
-                </div>
-              )}
+            {!popularAirportList.length && !filteredAirportList.length && (
+              <div className={styles["item-not-found"]}>
+                No result found for {searchKey}
+              </div>
+            )}
           </div>
         </div>
       </div>

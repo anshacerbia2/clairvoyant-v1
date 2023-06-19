@@ -30,15 +30,8 @@ module.exports = {
         type: Sequelize.STRING,
       },
       airports: {
-        allowNull: true,
+        allowNull: false,
         type: Sequelize.TEXT,
-        get() {
-          const value = this.getDataValue("airports");
-          return value ? JSON.parse(value) : [];
-        },
-        set(value) {
-          this.setDataValue("airports", JSON.stringify(value));
-        },
       },
       score: {
         allowNull: false,

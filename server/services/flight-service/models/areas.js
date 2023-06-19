@@ -18,7 +18,16 @@ module.exports = (sequelize, DataTypes) => {
       location: DataTypes.STRING,
       country: DataTypes.STRING,
       iataCode: DataTypes.STRING,
-      airports: DataTypes.TEXT,
+      airports: {
+        type: DataTypes.TEXT,
+        get() {
+          const value = this.getDataValue("airports");
+          return value ? JSON.parse(value) : [];
+        },
+        set(value) {
+          this.setDataValue("airports", JSON.stringify(value));
+        },
+      },
       score: DataTypes.INTEGER,
     },
     {

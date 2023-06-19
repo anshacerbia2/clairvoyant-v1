@@ -1,9 +1,20 @@
 "use client";
 import styles from "@/styles/SearchFlightForm.module.scss";
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useReducer,
+  useRef,
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
 import { useRouter } from "next/router";
 import Image from "next/image";
 import axios, { AxiosResponse } from "axios";
+// Reducer
+import searchFlightFormReducer, {
+  createInitialState,
+} from "@/reducer/searchFlightForm.reducer";
 // Helpers
 import {
   createNewDate,
@@ -29,16 +40,46 @@ import {
 } from "react-icons/md";
 // Models
 import {
+  ISegmentsStates,
   defaultAirport,
   defaultTravelClass,
 } from "@/models/search-flight-form.model";
 import type {
-  IAirportList,
+  IAirportsOrAreas,
   ISearchFlightFormChildrenRef,
   ISearchFlightFormInputStates,
   ISearchFlightFormDropdown,
 } from "@/models/search-flight-form.model";
 
+import {
+  addIsInitDepartureDate,
+  addSearchKey,
+  addSegments,
+  forceCloseAll,
+  forceCloseAllWithException,
+  forceCloseCurrent,
+  resetIsInitDepartureDate,
+  resetSearchKey,
+  resetSegments,
+  setPopularAirportList,
+  setAirportListDropdowntype,
+  setCalendarType,
+  setInputDynamicWidth,
+  setIsInitDepartureDate,
+  setIsInitReturnDate,
+  setNonStop,
+  setPassenger,
+  setPromoCode,
+  setReturnDate,
+  setSearchKey,
+  setSegmentIdx,
+  setSegments,
+  setTravelClass,
+  setTripType,
+  showDropdownCurrent,
+  setFilteredAirportList,
+} from "@/reducer/searchFlightForm.actions";
+import { useDebounce } from "@/hooks";
 const initDate = createNewDate(
   new Date().getFullYear(),
   new Date().getMonth(),
@@ -70,92 +111,96 @@ const SearchFlightForm: React.FC = () => {
 
   const t = useTranslations("Index");
 
-  const [input, setInput] = useState<ISearchFlightFormInputStates>({
-    tripType: {
-      oneWay: false,
-      roundTrip: true,
-      multiCity: false,
-    },
-    segments: [
-      {
-        origin: defaultAirport,
-        destination: defaultAirport,
-        departureDate: initDate,
-      },
-    ],
-    returnDate: initDate,
-    passenger: {
-      adults: 1,
-      children: 0,
-      infants: 0,
-    },
-    travelClass: {
-      value: "ECONOMY",
-      display: "Economy",
-    },
-    nonStop: false,
-    promoCode: "",
-  });
-  const [searchKey, setSearchKey] = useState([
-    {
-      origin: "",
-      destination: "",
-    },
-  ]);
-  const [isInitDepartureDate, setIsInitDepartureDate] = useState([true]);
-  const [isInitReturnDate, setIsInitReturnDate] = useState(true);
-  const [showDropdown, setShowDropdown] = useState<ISearchFlightFormDropdown>({
-    airportDropdown: false,
-    datePicker: false,
-    passengerDropdown: false,
-    travelClassDropdown: false,
-  });
-  const [forceClose, setForceClose] = useState<ISearchFlightFormDropdown>({
-    airportDropdown: false,
-    datePicker: false,
-    passengerDropdown: false,
-    travelClassDropdown: false,
-  });
-  const [airportListDropdowntype, setAirportListDropdowntype] =
-    useState("origin-1");
-  const [airportListDropdownidx, setAirportListDropdownidx] = useState(0);
-  const [calendarType, setCalendarType] = useState("departure-1");
-  const [segmentsIdx, setSegmentsIdx] = useState(0);
-  const [airportList, setAirportList] = useState<IAirportList[]>([]);
-  // const [flighList, setFlightList] = useState<any[]>([]);
-  const [inputDynamicWidth, setInputDynamicWidth] = useState(232);
+  const [state, dispatch] = useReducer(
+    searchFlightFormReducer,
+    null,
+    createInitialState
+  );
 
-  // const [showCalendar, setShowCalendar] = useState(false);
-  // const [showAirportListDropdown, setShowAirportListDropdown] = useState(false);
-  // const [showPassengerDropdown, setShowPassengerDropdown] = useState(false);
-  // const [showTravelClassDropdown, setShowTravelClassDropdown] = useState(false);
-
-  useEffect(() => {}, [input, showDropdown, forceClose]);
+  // useEffect((): void | (() => void) => {
+  //   const handleKeyDown = (event: KeyboardEvent) => {
+  //     if (event.key == "Tab") {
+  //       event.preventDefault();
+  //     }
+  //   };
+  //   document.addEventListener("keydown", handleKeyDown);
+  //   return () => {
+  //     document.removeEventListener("keydown", handleKeyDown);
+  //   };
+  // }, []);
 
   useEffect((): void => {
     const fetchAirportList = async () => {
-      const response: AxiosResponse<IAirportList[]> = await axios.get<
-        IAirportList[]
-      >("http://localhost:4002/airport-list");
+      // const response: AxiosResponse<IAirportsOrAreas[]> = await axios.get<
+      //   IAirportsOrAreas[]
+      // >("http://localhost:4002/airport-list-popular");
+
+      const response = await axios.get(
+        "http://localhost:4002/airports-and-areas/popular"
+      );
       if (response.status === 200) {
-        setAirportList(response.data);
+        // response.data.forEach((obj) => {
+        //   if (obj.airports) {
+        //     obj.airports = JSON.parse(obj.airports);
+        //   }
+        // });
+        console.log(response.data);
+
+        dispatch(setPopularAirportList(response.data));
       }
     };
     fetchAirportList();
   }, []);
 
+  const debouncedSearchKey = useDebounce(state!.searchKey, 200);
+
+  useEffect(() => {
+    const fetchFilteredAirportList = async () => {
+      const searchKey = debouncedSearchKey[state!.segmentIdx];
+      const key = searchKey.origin || searchKey.destination;
+
+      if (key) {
+        const response = await axios.get(
+          `http://localhost:4002/airports-and-areas?search=${key}`
+        );
+        if (response.status === 200) {
+          console.log(response.data);
+          dispatch(setFilteredAirportList(response.data));
+        }
+      }
+    };
+
+    fetchFilteredAirportList();
+  }, [debouncedSearchKey]);
+
   useEffect((): void | (() => void) => {
     if (
-      showDropdown.airportDropdown ||
-      showDropdown.datePicker ||
-      showDropdown.passengerDropdown ||
-      showDropdown.travelClassDropdown
+      state!.showDropdown.airportDropdown ||
+      state!.showDropdown.datePicker ||
+      state!.showDropdown.passengerDropdown ||
+      state!.showDropdown.travelClassDropdown
     ) {
       const handleClickOutside: EventListener = (event: Event): void => {
+        const target = event.target as HTMLElement;
+        // Notes: for checking closest element id using regex (return boolean)
+        // const regexOrigin = /^SSBOrigin-[0-4]$/;
+        // const regexDestination = /^SSBDestination-[0-4]$/;
+        // const regexDeparture = /^SSBDeparture-[0-4]$/;
+        // const mergedRegex = new RegExp(
+        //   `${regexOrigin.source}|${regexDestination.source}|${regexDeparture.source}`
+        // );
+        // or:
+        // const mergedRegex2 = new RegExp(
+        //   `^SSBOrigin-[0-4]$|^SSBDestination-[0-4]$|^SSBDeparture-[0-4]$`
+        // );
+        const closestElement = target.closest(
+          "[id^='SSBOrigin-'], [id^='SSBDestination-'], [id^='SSBDeparture-']"
+        );
         const airportDropdownEleId = `#${childrenRef.current.airportListDropdownRef.current?.id}`;
         const datePickerEleId = `#${childrenRef.current.datePickerRef.current?.id}`;
         const dropdownTransitionEleId = `#${childrenRef.current.dropdownTransitionRef.current?.id}`;
-        let isNotTarget: boolean = true;
+        let isNotTarget = true;
+
         for (const key in inputRef.current) {
           const currentRef = inputRef.current[key];
           if (Array.isArray(currentRef)) {
@@ -167,55 +212,30 @@ const SearchFlightForm: React.FC = () => {
           }
           if (!isNotTarget) break;
         }
+
         if (
-          event.target instanceof HTMLElement &&
           isNotTarget &&
-          event.target !== inputRef.current.return &&
-          event.target !== inputRef.current.passenger &&
-          event.target !== inputRef.current.travelClass &&
-          event.target !== inputRef.current.promoCode &&
-          event.target.id !==
-            childrenRef.current.airportListDropdownRef.current?.id &&
-          event.target.id !== childrenRef.current.datePickerRef.current?.id &&
-          event.target.id !==
-            childrenRef.current.dropdownTransitionRef.current?.id &&
-          !event.target.closest(airportDropdownEleId) &&
-          !event.target.closest(datePickerEleId) &&
-          !event.target.closest(dropdownTransitionEleId)
+          !closestElement &&
+          target.id !== airportDropdownEleId &&
+          target.id !== datePickerEleId &&
+          target.id !== dropdownTransitionEleId &&
+          !target.closest(airportDropdownEleId) &&
+          !target.closest(datePickerEleId) &&
+          !target.closest(dropdownTransitionEleId)
         ) {
+          console.log("clicked outside >>>>>>>>>>");
           clearSearchKey();
-          for (const key in inputRef.current) {
-            const inputRefArr = inputRef.current[key];
-            if (inputRefArr) {
-              if (Array.isArray(inputRefArr)) {
-                inputRefArr.forEach((element) => {
-                  element.classList.remove("focused-input");
-                });
-              } else {
-                inputRefArr.classList.remove("focused-input");
-              }
-            }
-          }
           normalizeDateBorder();
-          setForceClose((prevState) => {
-            const newState = Object.fromEntries(
-              Object.entries(prevState).map(([key, value]) => {
-                return [
-                  key,
-                  Array.isArray(value) ? Array(value.length).fill(true) : true,
-                ];
-              })
-            );
-            return newState as ISearchFlightFormDropdown;
-          });
+          removeFocusedInputClassName();
+          dispatch(forceCloseAll(state!.forceClose));
         }
       };
-      document.addEventListener("click", handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
       return () => {
-        document.removeEventListener("click", handleClickOutside);
+        document.removeEventListener("mousedown", handleClickOutside);
       };
     }
-  }, [showDropdown]);
+  }, [state!.showDropdown]);
 
   useEffect((): void => {
     const originRef = inputRef.current.origin;
@@ -223,69 +243,62 @@ const SearchFlightForm: React.FC = () => {
       ? originRef[0]?.offsetWidth
       : originRef?.offsetWidth;
     if (originWidth) {
-      setInputDynamicWidth(originWidth);
+      dispatch(setInputDynamicWidth(originWidth));
     }
-  }, [input.tripType]);
-
-  const getOriginOrDestinationValue = (value: IAirportList): string => {
-    const { id, city, country, name, code } = value;
-    return id ? `${city} (${code}), ${name}, ${country}` : "";
-  };
-
-  const getPassengerValue = (): string => {
-    return `${input.passenger.adults} Adults, ${input.passenger.children} Children, ${input.passenger.infants} Infants`;
-  };
-
-  const handleChangeSearchKey = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ): void => {
-    const name = event.target.name.split("-")[0];
-    const value = event.target.value;
-    setSearchKey((prevState) => {
-      const searchValue = prevState.map((v, i) => {
-        if (i === segmentsIdx) {
-          return { ...v, [name]: value };
-        } else {
-          return { ...v };
-        }
-      });
-      return searchValue;
-    });
-  };
-
-  const clearSearchKey = (): void => {
-    setSearchKey((prevState) => {
-      const value = prevState.map((key) => {
-        return { origin: "", destination: "" };
-      });
-      return value;
-    });
-  };
+  }, [state!.tripType]);
 
   /*
    ** Input with dropdown UI/UX (Require DOM manipulation)
    ** Since these elements binded with focus, blur and click event,
    ** and the CSS (only) cannot give the expected result, we need to manipulate the DOM
    */
-  const setCurrentForceClose = (
-    dropdown: string,
-    value: boolean
-    // segmentIdx: number | undefined
+  const removeFocusedInputClassName = (
+    currentTarget?: HTMLInputElement | null
   ) => {
-    setForceClose((prevState) => {
-      // const index = segmentIdx ? segmentIdx : segmentsIdx;
-      // let newValue: boolean | boolean[];
-      // if (dropdown === "airportDropdown" || dropdown === "datePicker") {
-      //   newValue = [...prevState[dropdown]];
-      //   newValue[index] = value;
-      // } else {
-      //   newValue = value;
-      // }
-      return {
-        ...prevState,
-        [dropdown]: value,
-      };
-    });
+    for (const key in inputRef.current) {
+      const inputRefArr = inputRef.current[key];
+      if (inputRefArr) {
+        if (Array.isArray(inputRefArr)) {
+          inputRefArr.forEach((element) => {
+            if (element !== currentTarget) {
+              element.classList.remove("focused-input");
+            }
+          });
+        } else {
+          if (inputRefArr !== currentTarget) {
+            inputRefArr.classList.remove("focused-input");
+          }
+        }
+      }
+    }
+  };
+
+  const getOriginOrDestinationValue = (value: IAirportsOrAreas): string => {
+    const { id, location, country, name, code } = value;
+    return id ? `${location} (${code}), ${name}, ${country}` : "";
+  };
+
+  const getPassengerValue = (): string => {
+    return `${state!.passenger.adults} Adults, ${
+      state!.passenger.children
+    } Children, ${state!.passenger.infants} Infants`;
+  };
+
+  const handleChangeSearchKey = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ): void => {
+    dispatch(
+      setSearchKey(
+        event.target.name.split("-")[0],
+        event.target.value,
+        state!.segmentIdx,
+        state!.searchKey
+      )
+    );
+  };
+
+  const clearSearchKey = (): void => {
+    dispatch(resetSearchKey(state!.searchKey));
   };
 
   const setCurrentDropDown = (
@@ -294,36 +307,51 @@ const SearchFlightForm: React.FC = () => {
     // segmentIdx: number | undefined
   ) => {
     console.log(dropdown, value, ">2");
+    dispatch(showDropdownCurrent(dropdown, value, state!.showDropdown));
+  };
 
-    setShowDropdown((prevState) => {
-      // const index = segmentIdx ? segmentIdx : segmentsIdx;
-      // let newValue: boolean | boolean[];
-      // if (dropdown === "airportDropdown" || dropdown === "datePicker") {
-      //   newValue = [...prevState[dropdown]];
-      //   newValue[index] = value;
-      // } else {
-      //   newValue = value;
-      // }
-      return {
-        ...prevState,
-        [dropdown]: value,
-      };
-    });
+  const handleHideDropdown = (dropdown: string): void => {
+    setCurrentForceClose(dropdown, false);
+    setCurrentDropDown(dropdown, false);
+    if (dropdown === "airportDropdown") {
+      const prefix = state!.airportListDropdowntype.split("-")[0];
+      const input = inputRef.current[prefix];
+      if (input && Array.isArray(input)) {
+        const element = input[state!.segmentIdx];
+        if (element) {
+          element.blur();
+        }
+      }
+    }
+  };
+
+  const setCurrentForceClose = (dropdown: string, value: boolean) => {
+    dispatch(forceCloseCurrent(dropdown, value, state!.forceClose));
+  };
+
+  const changeInitDepartureDate = (): void => {
+    dispatch(
+      setIsInitDepartureDate(state!.segmentIdx, state!.isInitDepartureDate)
+    );
+  };
+
+  const normalizeDateBorder = (): void => {
+    dateBorderRef.current?.classList.remove("active-border");
   };
 
   const onFocus =
     (prefix: string, dropdown: string, segmentIdx: number) =>
     (event: React.FocusEvent<HTMLInputElement>): void => {
       clearSearchKey();
-      setSegmentsIdx(segmentIdx);
+      dispatch(setSegmentIdx(segmentIdx));
       const currentRef = inputRef.current[prefix];
       const inputElement = Array.isArray(currentRef)
         ? currentRef[segmentIdx]
         : currentRef;
-      if (dropdown === "datePicker" || !input.tripType.roundTrip) {
+      if (dropdown === "datePicker" || !state!.tripType.roundTrip) {
         dateBorderRef.current?.classList.add("active-border");
       } else {
-        if (!input.tripType.multiCity) normalizeDateBorder();
+        if (!state!.tripType.multiCity) normalizeDateBorder();
       }
       inputElement?.classList.add("focused-input");
       const updateForceClose: ISearchFlightFormDropdown = {
@@ -333,36 +361,23 @@ const SearchFlightForm: React.FC = () => {
         travelClassDropdown: true,
       };
       if (dropdown) updateForceClose[dropdown] = false;
-      console.log(updateForceClose, ">1");
-
-      setForceClose(updateForceClose);
+      dispatch(forceCloseAllWithException(updateForceClose));
       if (dropdown === "datePicker") {
         (inputElement as HTMLInputElement)?.select();
       }
-      for (const key in inputRef.current) {
-        const inputRefArr = inputRef.current[key];
-        if (inputRefArr) {
-          if (Array.isArray(inputRefArr)) {
-            inputRefArr.forEach((value) => {
-              if (value.id !== inputElement?.id) {
-                value.classList.remove("focused-input");
-              }
-            });
-          } else {
-            if (inputRefArr.id !== inputElement?.id) {
-              inputRefArr.classList.remove("focused-input");
-            }
-          }
-        }
-      }
+      removeFocusedInputClassName(inputElement);
       if (dropdown === "airportDropdown") {
-        setAirportListDropdowntype(`${prefix}-${segmentIdx}`);
+        dispatch(setAirportListDropdowntype(`${prefix}-${segmentIdx}`));
       }
       if (dropdown === "datePicker") {
-        setCalendarType(`${prefix}-${segmentIdx}`);
+        dispatch(setCalendarType(`${prefix}-${segmentIdx}`));
       }
       if (dropdown) setCurrentDropDown(dropdown, true);
     };
+
+  const onBlurAirportOriginDestination = () => {
+    dispatch(resetSearchKey(state!.searchKey));
+  };
 
   const onBlurPromoCode = (event: React.FocusEvent<HTMLInputElement>): void => {
     (inputRef.current.promoCode as HTMLInputElement)?.classList.remove(
@@ -370,65 +385,37 @@ const SearchFlightForm: React.FC = () => {
     );
   };
 
-  const handleHideDropdown = (dropdown: string): void => {
-    console.log("ends");
-
-    setCurrentForceClose(dropdown, false);
-    setCurrentDropDown(dropdown, false);
-  };
-
-  const normalizeDateBorder = (): void => {
-    dateBorderRef.current?.classList.remove("active-border");
-  };
-
   const changeOriginDestination = (
     prefix: string,
-    value: IAirportList
+    value: IAirportsOrAreas
   ): void => {
     prefix = prefix.split("-")[0];
     const currentInputRef = inputRef.current[prefix];
     if (Array.isArray(currentInputRef)) {
-      currentInputRef[segmentsIdx]?.classList.remove("focused-input");
+      currentInputRef[state!.segmentIdx]?.classList.remove("focused-input");
     }
-    setInput((prevState) => {
-      const segmentsValue = prevState.segments.map((segment, index) => {
-        if (index === segmentsIdx) {
-          return { ...segment, [prefix]: value };
-        } else {
-          return { ...segment };
-        }
-      });
-      return { ...prevState, segments: segmentsValue };
-    });
+    console.log(
+      setSegments(prefix, value, state!.segmentIdx, state!.segments),
+      "ini"
+    );
+    dispatch(setSegments(prefix, value, state!.segmentIdx, state!.segments));
     clearSearchKey();
     setCurrentForceClose("airportDropdown", true);
-  };
-
-  const changeInitDepartureDate = (): void => {
-    setIsInitDepartureDate((prevState) => {
-      const isInitValues = prevState.map((v, i) => {
-        if (i === segmentsIdx) {
-          return false;
-        } else {
-          return v;
-        }
-      });
-      return isInitValues;
-    });
   };
 
   const changeDepartureReturnDate = (prefix: string, date: Date): void => {
     prefix = prefix.split("-")[0];
     if (prefix === "departure") {
-      if (isInitDepartureDate[segmentsIdx]) changeInitDepartureDate();
+      if (state!.isInitDepartureDate[state!.segmentIdx])
+        changeInitDepartureDate();
     }
-    if (prefix === "return" && !input.tripType.multiCity) {
-      if (isInitDepartureDate[0]) changeInitDepartureDate();
-      if (isInitReturnDate) setIsInitReturnDate(false);
+    if (prefix === "return" && !state!.tripType.multiCity) {
+      if (state!.isInitDepartureDate[0]) changeInitDepartureDate();
+      if (state!.isInitReturnDate) dispatch(setIsInitReturnDate(false));
     }
     const currentInputRef = inputRef.current[prefix];
     if (Array.isArray(currentInputRef)) {
-      currentInputRef[segmentsIdx]?.classList.remove("focused-input");
+      currentInputRef[state!.segmentIdx]?.classList.remove("focused-input");
     } else {
       currentInputRef?.classList.remove("focused-input");
     }
@@ -437,30 +424,25 @@ const SearchFlightForm: React.FC = () => {
       const isHigherThanReturn =
         date >
         new Date(
-          `${input.returnDate.getFullYear()}-${
-            input.returnDate.getMonth() + 1
-          }-${input.returnDate.getDate()}`
+          `${state!.returnDate.getFullYear()}-${
+            state!.returnDate.getMonth() + 1
+          }-${state!.returnDate.getDate()}`
         );
-      setInput((prevState) => {
-        const segmentsValue = [...prevState.segments];
-        segmentsValue[segmentsIdx].departureDate = date;
-        return {
-          ...prevState,
-          segments: segmentsValue,
-          returnDate:
-            !input.tripType.multiCity && isHigherThanReturn
-              ? date
-              : prevState.returnDate,
-        };
-      });
+      dispatch(
+        setSegments(
+          "departureDate",
+          null,
+          state!.segmentIdx,
+          state!.segments,
+          date
+        )
+      );
+      if (!state!.tripType.multiCity && isHigherThanReturn) {
+        dispatch(setReturnDate(date));
+      }
     }
     if (prefix === "return") {
-      setInput((prevState) => {
-        return {
-          ...prevState,
-          returnDate: date,
-        };
-      });
+      dispatch(setReturnDate(date));
     }
     setCurrentForceClose("datePicker", true);
   };
@@ -468,42 +450,19 @@ const SearchFlightForm: React.FC = () => {
   const changePassenger = (
     passenger: ISearchFlightFormInputStates["passenger"]
   ): void => {
-    setInput({ ...input, passenger });
+    dispatch(setPassenger(passenger));
   };
 
   const changeTravelClass = (index: number): void => {
-    setInput({ ...input, travelClass: defaultTravelClass[index] });
+    dispatch(setTravelClass(index));
     setCurrentForceClose("travelClassDropdown", true);
   };
 
   const handleAddSegment = () => {
-    if (input.segments.length < 5) {
-      setInput((prevState) => {
-        const newSegments = [
-          ...prevState.segments,
-          {
-            origin: defaultAirport,
-            destination: defaultAirport,
-            departureDate: initDate,
-          },
-        ];
-        return {
-          ...prevState,
-          segments: newSegments,
-        };
-      });
-      setSearchKey((prevState) => {
-        return [
-          ...prevState,
-          {
-            origin: "",
-            destination: "",
-          },
-        ];
-      });
-      setIsInitDepartureDate((prevState) => {
-        return [...prevState, true];
-      });
+    if (state!.segments.length < 5) {
+      dispatch(addSegments());
+      dispatch(addSearchKey());
+      dispatch(addIsInitDepartureDate());
     }
   };
 
@@ -511,46 +470,24 @@ const SearchFlightForm: React.FC = () => {
     const name = event.target.name;
     const value = event.target.value;
     if (name === "nonStop") {
-      setInput((prevState) => {
-        return {
-          ...prevState,
-          nonStop: !prevState.nonStop,
-        };
-      });
+      dispatch(setNonStop());
     }
     if (name === "tripType") {
-      setInput((prevState) => {
-        return {
-          ...prevState,
-          tripType: {
-            oneWay: value === "oneWay" ? true : false,
-            roundTrip: value === "roundTrip" ? true : false,
-            multiCity: value === "multiCity" ? true : false,
-          },
-          segments:
-            value === "multiCity"
-              ? [...prevState.segments].concat(
-                  Array(2).fill({
-                    origin: defaultAirport,
-                    destination: defaultAirport,
-                    departureDate: initDate,
-                  })
-                )
-              : [prevState.segments[0]],
-          returnDate: prevState.segments[0].departureDate,
-        };
-      });
-      setSearchKey(
-        Array(3).fill({
-          origin: "",
-          destination: "",
-        })
-      );
+      dispatch(setTripType(value));
+      if (value === "multiCity") {
+        dispatch(addSegments());
+        dispatch(addSegments());
+        dispatch(addIsInitDepartureDate());
+        dispatch(addIsInitDepartureDate());
+        dispatch(addSearchKey());
+        dispatch(addSearchKey());
+      }
+      dispatch(setReturnDate(state!.segments[0].departureDate));
       if (value === "oneWay" || value === "roundTrip") {
-        setIsInitReturnDate(true);
-        setIsInitDepartureDate((prevState) => {
-          return [prevState[0]];
-        });
+        dispatch(resetSegments());
+        dispatch(resetIsInitDepartureDate());
+        dispatch(setIsInitReturnDate(true));
+        dispatch(resetSearchKey([state!.searchKey[0]]));
         /**
          * This one to prevent bug that happens if the return datepicker is open then
          * the tripType change, the forceClose will not passed to the return datePicker
@@ -558,27 +495,15 @@ const SearchFlightForm: React.FC = () => {
          * so the showDropdown.datePicker won't set to false. When the return datePicker shown
          * again it will not open the dropdown when it's being focused
          */
-        if (value === "oneWay" && showDropdown.datePicker) {
-          setShowDropdown((prevState) => {
-            const result = { ...prevState };
-            result.datePicker = false;
-            return result;
-          });
+        if (value === "oneWay" && state!.showDropdown.datePicker) {
+          dispatch(
+            showDropdownCurrent("datePicker", false, state!.showDropdown)
+          );
         }
-      }
-      if (value === "multiCity") {
-        setIsInitDepartureDate((prevState) => {
-          return [prevState[0], true, true];
-        });
       }
     }
     if (name === "promoCode") {
-      setInput((prevState) => {
-        return {
-          ...prevState,
-          promoCode: value,
-        };
-      });
+      dispatch(setPromoCode(value));
     }
   };
 
@@ -587,26 +512,26 @@ const SearchFlightForm: React.FC = () => {
   ) => {
     event.preventDefault();
     let tripType = "";
-    for (const key in input.tripType) {
-      if (input.tripType[key]) {
+    for (const key in state!.tripType) {
+      if (state!.tripType[key]) {
         tripType += "1";
       } else {
         tripType += "0";
       }
     }
-    // const url = `/flight?origin=${input.origin.code}&destination=${
-    //   input.destination.code
+    // const url = `/flight?origin=${state.origin.code}&destination=${
+    //   state.destination.code
     // }&date=${
-    //   dateToStringAmadeus(input.departureDate) +
+    //   dateToStringAmadeus(state.departureDate) +
     //   "." +
-    //   dateToStringAmadeus(input.returnDate)
+    //   dateToStringAmadeus(state.returnDate)
     // }&ps=${
-    //   input.passenger.adults +
+    //   state.passenger.adults +
     //   "." +
-    //   input.passenger.children +
+    //   state.passenger.children +
     //   "." +
-    //   input.passenger.infants
-    // }&tc=${input.travelClass.value}&dir=${input.nonStop}&tt=${tripType}`;
+    //   state.passenger.infants
+    // }&tc=${state.travelClass.value}&dir=${state.nonStop}&tt=${tripType}`;
     // router.push(url);
   };
 
@@ -614,11 +539,11 @@ const SearchFlightForm: React.FC = () => {
     <>
       <form onSubmit={handleSubmit}>
         <br />
+        {/* Start - Triptype Component */}
         <div className="c-row-ssb">
           <div
             className={
-              styles.col +
-              " c-form-group c-form-floating inc-img c-radio-group c-fg-ssb mb-3"
+              styles.col + " c-form-group c-form-floating inc-img c-radio-group"
             }
             style={{ display: "flex" }}
           >
@@ -629,7 +554,7 @@ const SearchFlightForm: React.FC = () => {
                 id="radioOW"
                 name="tripType"
                 value="oneWay"
-                checked={input.tripType.oneWay}
+                checked={state!.tripType.oneWay}
                 onChange={handleChange}
               />
               <span className={styles["radiomark"]}></span>
@@ -645,7 +570,7 @@ const SearchFlightForm: React.FC = () => {
                 id="radioRT"
                 name="tripType"
                 value="roundTrip"
-                checked={input.tripType.roundTrip}
+                checked={state!.tripType.roundTrip}
                 onChange={handleChange}
               />
               <span className={styles["radiomark"]}></span>
@@ -661,7 +586,7 @@ const SearchFlightForm: React.FC = () => {
                 id="radioMC"
                 name="tripType"
                 value="multiCity"
-                checked={input.tripType.multiCity}
+                checked={state!.tripType.multiCity}
                 onChange={handleChange}
               />
               <span className={styles["radiomark"]}></span>
@@ -673,7 +598,7 @@ const SearchFlightForm: React.FC = () => {
                 type="checkbox"
                 id="nonStop"
                 name="nonStop"
-                checked={input.nonStop}
+                checked={state!.nonStop}
                 onChange={handleChange}
               />
               <span className={styles["checkmark"]}>
@@ -682,316 +607,321 @@ const SearchFlightForm: React.FC = () => {
             </label>
           </div>
         </div>
-        {input.segments.map((segment, segmentIdx) => {
-          return (
-            <div
-              key={`segment-${segmentIdx}`}
-              className="c-row-ssb"
-              style={{ position: "relative" }}
-            >
+        {/* End - Triptype Component */}
+        {/* Start - Segments Component */}
+        {state!.segments
+          .slice(0, 5)
+          .map((segment: ISegmentsStates, segmentIdx: number) => {
+            return (
               <div
-                className={
-                  styles.col +
-                  " c-form-group c-form-floating inc-img c-fg-ssb mb-3"
-                }
-                style={{ width: "calc(100%/3)" }}
-                onClick={(e) => e.stopPropagation()}
+                key={`segment-${segmentIdx}`}
+                className="c-row-ssb"
+                style={{ position: "relative" }}
               >
                 <div
-                  className=""
-                  style={{
-                    position: "absolute",
-                    right: 8,
-                    top: "calc(50% - 14px)",
-                  }}
-                >
-                  <Image
-                    src={flightIcon}
-                    height={24}
-                    alt="Depart from"
-                    style={{ transform: "rotate(-45deg)", opacity: 0.85 }}
-                  />
-                </div>
-                <input
-                  ref={(element) => {
-                    if (element) {
-                      if (Array.isArray(inputRef.current.origin)) {
-                        inputRef.current.origin[segmentIdx] = element;
-                      } else {
-                        inputRef.current.origin = [element];
-                      }
-                    }
-                  }}
                   id={`SSBOrigin-${segmentIdx}`}
-                  className="c-form-control"
-                  placeholder="Origin"
-                  autoComplete="off"
-                  name={`origin-${segmentIdx}`}
-                  value={searchKey[segmentIdx].origin}
-                  onChange={handleChangeSearchKey}
-                  onFocus={onFocus("origin", "airportDropdown", segmentIdx)}
-                />
-                <input
-                  className="c-form-control-mask"
-                  value={getOriginOrDestinationValue(segment.origin)}
-                  readOnly
-                  disabled
-                  placeholder="Origin"
-                />
-                <div className="c-control-label-wrapper">
-                  <label className="c-control-label">{t("from")}</label>
-                </div>
-                {showDropdown.airportDropdown &&
-                airportListDropdowntype === `origin-${segmentIdx}` ? (
-                  <AirportListDropdown
-                    ref={childrenRef.current.airportListDropdownRef}
-                    airportList={airportList}
-                    airportListDropdowntype="origin"
-                    origin={segment.origin}
-                    destination={segment.destination}
-                    handleChange={changeOriginDestination}
-                    hideDropdown={() => handleHideDropdown("airportDropdown")}
-                    forceClose={forceClose.airportDropdown}
-                    searchKey={searchKey[segmentIdx].origin}
-                  />
-                ) : (
-                  <></>
-                )}
-              </div>
-              <div
-                className={
-                  styles.col +
-                  " c-form-group c-form-floating inc-img c-fg-ssb mb-3"
-                }
-                style={{ width: "calc(100%/3)" }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 8,
-                    top: "calc(50% - 14px)",
-                  }}
-                >
-                  <Image
-                    src={flightIcon}
-                    height={24}
-                    alt="Flying to"
-                    style={{ opacity: 0.85 }}
-                  />
-                </div>
-                <input
-                  ref={(element) => {
-                    if (element) {
-                      if (Array.isArray(inputRef.current.destination)) {
-                        inputRef.current.destination[segmentIdx] = element;
-                      } else {
-                        inputRef.current.destination = [element];
-                      }
-                    }
-                  }}
-                  id={`SSBDestination-${segmentIdx}`}
-                  className="c-form-control"
-                  placeholder="Destination"
-                  autoComplete="off"
-                  name={`destination-${segmentIdx}`}
-                  value={searchKey[segmentIdx].destination}
-                  onChange={handleChangeSearchKey}
-                  onFocus={onFocus(
-                    "destination",
-                    "airportDropdown",
-                    segmentIdx
-                  )}
-                />
-                <input
-                  className="c-form-control-mask"
-                  value={getOriginOrDestinationValue(segment.destination)}
-                  readOnly
-                  disabled
-                  placeholder="Destination"
-                />
-                <div className="c-control-label-wrapper">
-                  <label className="c-control-label">{t("to")}</label>
-                </div>
-                {showDropdown.airportDropdown &&
-                airportListDropdowntype === `destination-${segmentIdx}` ? (
-                  <AirportListDropdown
-                    ref={childrenRef.current.airportListDropdownRef}
-                    airportList={airportList}
-                    airportListDropdowntype="destination"
-                    origin={segment.origin}
-                    destination={segment.destination}
-                    handleChange={changeOriginDestination}
-                    hideDropdown={() => handleHideDropdown("airportDropdown")}
-                    forceClose={forceClose.airportDropdown}
-                    searchKey={searchKey[segmentIdx].destination}
-                  />
-                ) : (
-                  <></>
-                )}
-              </div>
-              <div
-                className="c-date-group-ssb mb-3"
-                style={{
-                  width:
-                    input.tripType.oneWay || input.tripType.multiCity
-                      ? "calc(100%/3)"
-                      : "auto",
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div
                   className={
-                    styles.col +
-                    " c-form-group c-form-floating inc-img c-fg-ssb mb-0"
+                    styles.col + " c-form-group c-form-floating inc-img"
                   }
-                  style={{ cursor: "pointer" }}
+                  style={{ width: "calc(100%/3)" }}
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <div
+                    className=""
                     style={{
-                      display: "flex",
                       position: "absolute",
                       right: 8,
-                      top: "calc(50% - 12px)",
+                      top: "calc(50% - 14px)",
                     }}
                   >
-                    <VscCalendar size={24} style={{ color: "#9a9c9f" }} />
+                    <Image
+                      src={flightIcon}
+                      height={24}
+                      alt="Depart from"
+                      style={{ transform: "rotate(-45deg)", opacity: 0.85 }}
+                    />
                   </div>
                   <input
                     ref={(element) => {
                       if (element) {
-                        if (Array.isArray(inputRef.current.departure)) {
-                          inputRef.current.departure[segmentIdx] = element;
+                        if (Array.isArray(inputRef.current.origin)) {
+                          inputRef.current.origin[segmentIdx] = element;
                         } else {
-                          inputRef.current.departure = [element];
+                          inputRef.current.origin = [element];
                         }
                       }
                     }}
-                    id={`SSBDeparture-${segmentIdx}`}
-                    className={
-                      "c-form-control departure-date-input" +
-                      (isInitDepartureDate ? "" : " active-border")
-                    }
-                    style={{
-                      borderTopRightRadius:
-                        input.tripType.oneWay || input.tripType.multiCity
-                          ? 4
-                          : 0,
-                      borderBottomRightRadius:
-                        input.tripType.oneWay || input.tripType.multiCity
-                          ? 4
-                          : 0,
-                      borderRight:
-                        input.tripType.oneWay || input.tripType.multiCity
-                          ? ""
-                          : "none",
-                    }}
-                    value={
-                      isInitDepartureDate[segmentIdx]
-                        ? ""
-                        : dateToStringWithSlash(segment.departureDate)
-                    }
-                    placeholder="Departure"
+                    className="c-form-control"
+                    placeholder="Origin"
                     autoComplete="off"
-                    onFocus={onFocus("departure", "datePicker", segmentIdx)}
-                    onChange={() => {}}
+                    name={`origin-${segmentIdx}`}
+                    value={state!.searchKey[segmentIdx].origin}
+                    onChange={handleChangeSearchKey}
+                    onFocus={onFocus("origin", "airportDropdown", segmentIdx)}
+                    onBlur={onBlurAirportOriginDestination}
+                  />
+                  <input
+                    className="c-form-control-mask"
+                    value={getOriginOrDestinationValue(segment.origin)}
+                    readOnly
+                    disabled
+                    placeholder="Origin"
                   />
                   <div className="c-control-label-wrapper">
-                    <label className="c-control-label">
-                      {t("departureDate")}
-                    </label>
+                    <label className="c-control-label">{t("from")}</label>
                   </div>
-                  {showDropdown.datePicker &&
-                    calendarType === `departure-${segmentIdx}` && (
-                      <DatePickerV1
-                        ref={childrenRef.current.datePickerRef}
-                        calendarType="departure"
-                        departureDate={segment.departureDate}
-                        returnDate={input.returnDate}
-                        handleChange={changeDepartureReturnDate}
-                        hideCalendar={() => handleHideDropdown("datePicker")}
-                        forceClose={forceClose.datePicker}
-                      />
+                  {state!.showDropdown.airportDropdown &&
+                  state!.airportListDropdowntype === `origin-${segmentIdx}` ? (
+                    <AirportListDropdown
+                      ref={childrenRef.current.airportListDropdownRef}
+                      popularAirportList={state!.popularAirportList}
+                      filteredAirportList={state!.filteredAirportList}
+                      airportListDropdowntype="origin"
+                      origin={segment.origin}
+                      destination={segment.destination}
+                      handleChange={changeOriginDestination}
+                      hideDropdown={() => handleHideDropdown("airportDropdown")}
+                      forceClose={state!.forceClose.airportDropdown}
+                      searchKey={debouncedSearchKey[segmentIdx].origin}
+                    />
+                  ) : (
+                    <></>
+                  )}
+                </div>
+                <div
+                  id={`SSBDestination-${segmentIdx}`}
+                  className={
+                    styles.col + " c-form-group c-form-floating inc-img"
+                  }
+                  style={{ width: "calc(100%/3)" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      right: 8,
+                      top: "calc(50% - 14px)",
+                    }}
+                  >
+                    <Image
+                      src={flightIcon}
+                      height={24}
+                      alt="Flying to"
+                      style={{ opacity: 0.85 }}
+                    />
+                  </div>
+                  <input
+                    ref={(element) => {
+                      if (element) {
+                        if (Array.isArray(inputRef.current.destination)) {
+                          inputRef.current.destination[segmentIdx] = element;
+                        } else {
+                          inputRef.current.destination = [element];
+                        }
+                      }
+                    }}
+                    className="c-form-control"
+                    placeholder="Destination"
+                    autoComplete="off"
+                    name={`destination-${segmentIdx}`}
+                    value={state!.searchKey[segmentIdx].destination}
+                    onChange={handleChangeSearchKey}
+                    onFocus={onFocus(
+                      "destination",
+                      "airportDropdown",
+                      segmentIdx
+                    )}
+                    onBlur={onBlurAirportOriginDestination}
+                  />
+                  <input
+                    className="c-form-control-mask"
+                    value={getOriginOrDestinationValue(segment.destination)}
+                    readOnly
+                    disabled
+                    placeholder="Destination"
+                  />
+                  <div className="c-control-label-wrapper">
+                    <label className="c-control-label">{t("to")}</label>
+                  </div>
+                  {state!.showDropdown.airportDropdown &&
+                  state!.airportListDropdowntype ===
+                    `destination-${segmentIdx}` ? (
+                    <AirportListDropdown
+                      ref={childrenRef.current.airportListDropdownRef}
+                      popularAirportList={state!.popularAirportList}
+                      filteredAirportList={state!.filteredAirportList}
+                      airportListDropdowntype="destination"
+                      origin={segment.origin}
+                      destination={segment.destination}
+                      handleChange={changeOriginDestination}
+                      hideDropdown={() => handleHideDropdown("airportDropdown")}
+                      forceClose={state!.forceClose.airportDropdown}
+                      searchKey={debouncedSearchKey[segmentIdx].destination}
+                    />
+                  ) : (
+                    <></>
+                  )}
+                </div>
+                <div
+                  id={`SSBDeparture-${segmentIdx}`}
+                  className="c-date-group-ssb"
+                  style={{
+                    width:
+                      state!.tripType.oneWay || state!.tripType.multiCity
+                        ? "calc(100%/3)"
+                        : "auto",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div
+                    className={
+                      styles.col + " c-form-group c-form-floating inc-img"
+                    }
+                    style={{ cursor: "pointer" }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        position: "absolute",
+                        right: 8,
+                        top: "calc(50% - 12px)",
+                      }}
+                    >
+                      <VscCalendar size={24} style={{ color: "#9a9c9f" }} />
+                    </div>
+                    <input
+                      ref={(element) => {
+                        if (element) {
+                          if (Array.isArray(inputRef.current.departure)) {
+                            inputRef.current.departure[segmentIdx] = element;
+                          } else {
+                            inputRef.current.departure = [element];
+                          }
+                        }
+                      }}
+                      className="c-form-control departure-date-input"
+                      style={{
+                        borderTopRightRadius:
+                          state!.tripType.oneWay || state!.tripType.multiCity
+                            ? 4
+                            : 0,
+                        borderBottomRightRadius:
+                          state!.tripType.oneWay || state!.tripType.multiCity
+                            ? 4
+                            : 0,
+                        borderRight:
+                          state!.tripType.oneWay || state!.tripType.multiCity
+                            ? ""
+                            : "none",
+                      }}
+                      value={
+                        state!.isInitDepartureDate[segmentIdx]
+                          ? ""
+                          : dateToStringWithSlash(segment.departureDate)
+                      }
+                      placeholder="Departure"
+                      autoComplete="off"
+                      onFocus={onFocus("departure", "datePicker", segmentIdx)}
+                      onChange={() => {}}
+                    />
+                    <div className="c-control-label-wrapper">
+                      <label className="c-control-label">
+                        {t("departureDate")}
+                      </label>
+                    </div>
+                    {state!.showDropdown.datePicker &&
+                      state!.calendarType === `departure-${segmentIdx}` && (
+                        <DatePickerV1
+                          ref={childrenRef.current.datePickerRef}
+                          calendarType="departure"
+                          departureDate={segment.departureDate}
+                          returnDate={state!.returnDate}
+                          handleChange={changeDepartureReturnDate}
+                          hideCalendar={() => handleHideDropdown("datePicker")}
+                          forceClose={state!.forceClose.datePicker}
+                        />
+                      )}
+                  </div>
+                  {state!.tripType.roundTrip &&
+                    !state!.tripType.multiCity &&
+                    segmentIdx === 0 && (
+                      <>
+                        <div
+                          ref={dateBorderRef}
+                          className="c-form-group date-border"
+                        ></div>
+                        <div
+                          className={
+                            styles.col + " c-form-group c-form-floating inc-img"
+                          }
+                          style={{ cursor: "pointer" }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              position: "absolute",
+                              right: 8,
+                              top: "calc(50% - 12px)",
+                            }}
+                          >
+                            <VscCalendar
+                              size={24}
+                              style={{ color: "#9a9c9f" }}
+                            />
+                          </div>
+                          <input
+                            ref={(element) => {
+                              inputRef.current.return = element;
+                            }}
+                            id="SSBReturn"
+                            className="c-form-control return-date-input"
+                            style={{
+                              borderTopLeftRadius: 0,
+                              borderBottomLeftRadius: 0,
+                            }}
+                            value={
+                              state!.isInitReturnDate
+                                ? ""
+                                : dateToStringWithSlash(state!.returnDate)
+                            }
+                            placeholder="Return"
+                            autoComplete="off"
+                            onFocus={onFocus(
+                              "return",
+                              "datePicker",
+                              segmentIdx
+                            )}
+                            onChange={() => {}}
+                          />
+                          <div className="c-control-label-wrapper">
+                            <label className="c-control-label">
+                              {t("returnDate")}
+                            </label>
+                          </div>
+                          {state!.showDropdown.datePicker &&
+                            state!.calendarType === `return-${segmentIdx}` && (
+                              <DatePickerV1
+                                ref={childrenRef.current.datePickerRef}
+                                calendarType="return"
+                                departureDate={segment.departureDate}
+                                returnDate={state!.returnDate}
+                                handleChange={changeDepartureReturnDate}
+                                hideCalendar={() =>
+                                  handleHideDropdown("datePicker")
+                                }
+                                forceClose={state!.forceClose.datePicker}
+                              />
+                            )}
+                        </div>
+                      </>
                     )}
                 </div>
-                {input.tripType.roundTrip &&
-                  !input.tripType.multiCity &&
-                  segmentIdx === 0 && (
-                    <>
-                      <div ref={dateBorderRef} className="date-border"></div>
-                      <div
-                        className={
-                          styles.col +
-                          " c-form-group c-form-floating inc-img c-fg-ssb mb-0"
-                        }
-                        style={{ cursor: "pointer" }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            position: "absolute",
-                            right: 8,
-                            top: "calc(50% - 12px)",
-                          }}
-                        >
-                          <VscCalendar size={24} style={{ color: "#9a9c9f" }} />
-                        </div>
-                        <input
-                          ref={(element) => {
-                            inputRef.current.return = element;
-                          }}
-                          id="SSBReturn"
-                          className={
-                            "c-form-control return-date-input" +
-                            (isInitReturnDate ? "" : " active-border")
-                          }
-                          style={{
-                            borderTopLeftRadius: 0,
-                            borderBottomLeftRadius: 0,
-                          }}
-                          value={
-                            isInitReturnDate
-                              ? ""
-                              : dateToStringWithSlash(input.returnDate)
-                          }
-                          placeholder="Return"
-                          autoComplete="off"
-                          onFocus={onFocus("return", "datePicker", segmentIdx)}
-                          onChange={() => {}}
-                        />
-                        <div className="c-control-label-wrapper">
-                          <label className="c-control-label">
-                            {t("returnDate")}
-                          </label>
-                        </div>
-                        {showDropdown.datePicker &&
-                          calendarType === `return-${segmentIdx}` && (
-                            <DatePickerV1
-                              ref={childrenRef.current.datePickerRef}
-                              calendarType="return"
-                              departureDate={segment.departureDate}
-                              returnDate={input.returnDate}
-                              handleChange={changeDepartureReturnDate}
-                              hideCalendar={() =>
-                                handleHideDropdown("datePicker")
-                              }
-                              forceClose={forceClose.datePicker}
-                            />
-                          )}
-                      </div>
-                    </>
-                  )}
               </div>
-            </div>
-          );
-        })}
-        {input.tripType.multiCity && input.segments.length < 5 ? (
+            );
+          })}
+        {state!.tripType.multiCity && state!.segments.length < 5 ? (
           <div className={styles["add-segment-wrapper"]}>
-            <button
-              type="button"
-              className="c-btn mb-4"
-              onClick={handleAddSegment}
-            >
+            <button type="button" className="c-btn" onClick={handleAddSegment}>
               <span className="c-icon-wrapper">
                 <IoAddCircle size={24} />
               </span>
@@ -1001,14 +931,14 @@ const SearchFlightForm: React.FC = () => {
         ) : (
           <></>
         )}
+        {/* End - Segments Component */}
+        {/* Start - Travel Class Component */}
         <div className="c-row-ssb" style={{ position: "relative" }}>
           <div
-            className={
-              styles.col + " c-form-group c-form-floating inc-img c-fg-ssb mb-2"
-            }
+            className={styles.col + " c-form-group c-form-floating inc-img"}
             style={{
-              width: inputDynamicWidth,
-              minWidth: inputDynamicWidth,
+              width: state!.inputDynamicWidth,
+              minWidth: state!.inputDynamicWidth,
             }}
           >
             <div
@@ -1031,31 +961,33 @@ const SearchFlightForm: React.FC = () => {
               autoComplete="off"
               value={getPassengerValue()}
               onChange={() => {}}
-              onFocus={onFocus("passenger", "passengerDropdown", segmentsIdx)}
+              onFocus={onFocus(
+                "passenger",
+                "passengerDropdown",
+                state!.segmentIdx
+              )}
             />
             <div className="c-control-label-wrapper">
               <label className="c-control-label">{t("passenger")}</label>
             </div>
             <DropdownTransition
               ref={childrenRef.current.dropdownTransitionRef}
-              shouldRender={showDropdown.passengerDropdown}
+              shouldRender={state!.showDropdown.passengerDropdown}
               hideDropdown={() => handleHideDropdown("passengerDropdown")}
-              forceClose={forceClose.passengerDropdown}
+              forceClose={state!.forceClose.passengerDropdown}
               width={300}
             >
               <PassengerDropdown
-                inputPassenger={input.passenger}
+                inputPassenger={state!.passenger}
                 changePassenger={changePassenger}
               />
             </DropdownTransition>
           </div>
           <div
-            className={
-              styles.col + " c-form-group c-form-floating inc-img c-fg-ssb mb-2"
-            }
+            className={styles.col + " c-form-group c-form-floating inc-img"}
             style={{
-              width: inputDynamicWidth,
-              minWidth: inputDynamicWidth,
+              width: state!.inputDynamicWidth,
+              minWidth: state!.inputDynamicWidth,
             }}
           >
             <div
@@ -1079,12 +1011,12 @@ const SearchFlightForm: React.FC = () => {
               className="c-form-control"
               placeholder="Travel Class"
               autoComplete="off"
-              value={input.travelClass.display}
+              value={state!.travelClass.display}
               onChange={() => {}}
               onFocus={onFocus(
                 "travelClass",
                 "travelClassDropdown",
-                segmentsIdx
+                state!.segmentIdx
               )}
             />
             <div className="c-control-label-wrapper">
@@ -1092,20 +1024,18 @@ const SearchFlightForm: React.FC = () => {
             </div>
             <DropdownTransition
               ref={childrenRef.current.dropdownTransitionRef}
-              shouldRender={showDropdown.travelClassDropdown}
+              shouldRender={state!.showDropdown.travelClassDropdown}
               hideDropdown={() => handleHideDropdown("travelClassDropdown")}
-              forceClose={forceClose.travelClassDropdown}
+              forceClose={state!.forceClose.travelClassDropdown}
             >
               <TravelClassDropdown
-                travelClass={input.travelClass}
+                travelClass={state!.travelClass}
                 changeTravelClass={changeTravelClass}
               />
             </DropdownTransition>
           </div>
           <div
-            className={
-              styles.col + " c-form-group c-form-floating inc-img c-fg-ssb mb-2"
-            }
+            className={styles.col + " c-form-group c-form-floating inc-img"}
             style={{
               width: "100%",
             }}
@@ -1119,9 +1049,9 @@ const SearchFlightForm: React.FC = () => {
               placeholder="Promo Code"
               autoComplete="off"
               name="promoCode"
-              value={input.promoCode}
+              value={state!.promoCode}
               onChange={handleChange}
-              onFocus={onFocus("promoCode", "", segmentsIdx)}
+              onFocus={onFocus("promoCode", "", state!.segmentIdx)}
               onBlur={onBlurPromoCode}
             />
             <div className="c-control-label-wrapper">
@@ -1129,9 +1059,7 @@ const SearchFlightForm: React.FC = () => {
             </div>
           </div>
           <div
-            className={
-              styles.col + " c-form-group c-form-floating inc-img c-fg-ssb mb-2"
-            }
+            className={styles.col + " c-form-group c-form-floating inc-img"}
             style={{
               width: "100%",
             }}
@@ -1141,6 +1069,7 @@ const SearchFlightForm: React.FC = () => {
             </button>
           </div>
         </div>
+        {/* End - Travel Class Component */}
       </form>
     </>
   );
