@@ -8,7 +8,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import axios, { AxiosResponse } from "axios";
 // Reducer
@@ -19,6 +19,7 @@ import searchFlightFormReducer, {
 import {
   createNewDate,
   dateToStringAmadeus,
+  dateToStringWithDash,
   dateToStringWithSlash,
 } from "@/helpers/createNewDate";
 // Components
@@ -40,7 +41,7 @@ import {
 } from "react-icons/md";
 // Models
 import {
-  ISegmentsStates,
+  ISegmentStates,
   defaultAirport,
   defaultTravelClass,
 } from "@/models/search-flight-form.model";
@@ -110,6 +111,7 @@ const SearchFlightForm: React.FC = () => {
   });
 
   const t = useTranslations("Index");
+  const router = useRouter();
 
   const [state, dispatch] = useReducer(
     searchFlightFormReducer,
@@ -512,28 +514,87 @@ const SearchFlightForm: React.FC = () => {
     event
   ) => {
     event.preventDefault();
+    let isValidPs = false;
+    const ps: string[] = [];
+    for (const key in state.passenger) {
+      if (state.passenger[key] > 0) {
+        isValidPs = true;
+      }
+      ps.push(`${state.passenger[key]}`);
+    }
+    if (!isValidPs) return;
+
+    let isValidSegments = false;
+    const segments: string[] = [];
+    state.segments.forEach((segment: ISegmentStates) => {
+      if (
+        segment.origin.code &&
+        segment.destination.code &&
+        segment.departureDate
+      ) {
+        isValidSegments = true;
+        segments.push(
+          `${segment.origin.code}.${
+            segment.destination.code
+          }.${dateToStringWithDash(segment.departureDate)}`
+        );
+      }
+    });
+    if (!isValidSegments) return;
+
     let tripType = "";
-    for (const key in state!.tripType) {
-      if (state!.tripType[key]) {
-        tripType += "1";
+    let tripTypeArr: string[] = [];
+    for (const key in state.tripType) {
+      if (state.tripType[key]) {
+        tripType = key;
+        tripTypeArr.push("1");
       } else {
-        tripType += "0";
+        tripTypeArr.push("0");
       }
     }
-    // const url = `/flight?origin=${state.origin.code}&destination=${
-    //   state.destination.code
-    // }&date=${
-    //   dateToStringAmadeus(state.departureDate) +
-    //   "." +
-    //   dateToStringAmadeus(state.returnDate)
-    // }&ps=${
-    //   state.passenger.adults +
-    //   "." +
-    //   state.passenger.children +
-    //   "." +
-    //   state.passenger.infants
-    // }&tc=${state.travelClass.value}&dir=${state.nonStop}&tt=${tripType}`;
-    // router.push(url);
+
+    const rd = dateToStringWithDash(state.returnDate);
+    const ns = state.nonStop;
+    const tc = state.travelClass.value;
+
+    // console.log(
+    //   "triptype",
+    //   tripType,
+    //   "triptypeArr:",
+    //   tripTypeArr,
+    //   "segments:",
+    //   segments,
+    //   "typeofRd:",
+    //   typeof rd,
+    //   "rd:",
+    //   rd,
+    //   "ns:",
+    //   ns,
+    //   "tc:",
+    //   tc,
+    //   isValidPs,
+    //   ps
+    // );
+
+    let url = "/flight";
+    if (tripType === "multiCity") {
+      url += "/multicity-search";
+    } else if (tripType === "roundTrip") {
+      url += "/roundtrip-search";
+    } else {
+      url += "/search";
+    }
+    url += `?sg=${segments.join("_")}&ps=${ps.join(".")}&tc=${tc}`;
+
+    if (tripType === "roundTrip") {
+      url += `&rd=${rd}`;
+    }
+
+    if (ns) {
+      url += `&ns`;
+    }
+    console.log(url);
+    router.push(url);
   };
 
   return (
@@ -612,7 +673,7 @@ const SearchFlightForm: React.FC = () => {
         {/* Start - Segments Component */}
         {state!.segments
           .slice(0, 5)
-          .map((segment: ISegmentsStates, segmentIdx: number) => {
+          .map((segment: ISegmentStates, segmentIdx: number) => {
             return (
               <div
                 key={`segment-${segmentIdx}`}
@@ -1077,27 +1138,3 @@ const SearchFlightForm: React.FC = () => {
 };
 
 export default SearchFlightForm;
-
-// // const isoDurationToHoursMinutes = (duration) => {
-// //   const durationSeconds = moment.duration(duration).asSeconds();
-// //   const hours = Math.floor(durationSeconds / 3600);
-// //   const minutes = Math.floor((durationSeconds % 3600) / 60);
-// //   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-// // };
-
-// // // Example usage:
-// // const duration = "PT17H30M";
-// // const durationStr = isoDurationToHoursMinutes(duration);
-// // console.log(durationStr); // Output: "17:30"
-
-// const isoDurationToHoursMinutes = (duration) => {
-//   const durationSeconds = moment.duration(duration).asSeconds();
-//   const hours = Math.floor(durationSeconds / 3600);
-//   const minutes = Math.floor((durationSeconds % 3600) / 60);
-//   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-// };
-
-// // Example usage:
-// const duration = "PT17H30M";
-// const durationStr = isoDurationToHoursMinutes(duration);
-// console.log(durationStr); // Output: "17:30"

@@ -9,7 +9,7 @@ export interface ISearchKeyStates {
   destination: string;
 }
 
-export interface ISegmentsStates {
+export interface ISegmentStates {
   origin: IAirportsOrAreas;
   destination: IAirportsOrAreas;
   departureDate: Date;
@@ -22,7 +22,7 @@ export interface ISearchFlightFormInputStates {
     roundTrip: boolean;
     multiCity: boolean;
   };
-  segments: ISegmentsStates[];
+  segments: ISegmentStates[];
   returnDate: Date;
   passenger: {
     [key: string]: string | number;

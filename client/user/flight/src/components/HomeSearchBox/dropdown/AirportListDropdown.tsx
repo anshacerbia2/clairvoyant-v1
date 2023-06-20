@@ -71,6 +71,19 @@ const AirportListDropdown = React.forwardRef<
       }
     }, [forceClose]);
 
+    const handleEnter = (): void => {
+      if (
+        selectedDropdownIndex !== null &&
+        typeof selectedDropdownIndex === "number"
+      ) {
+        const data = matchAirportList.popular.concat(matchAirportList.more)[
+          selectedDropdownIndex
+        ];
+        handleChange(airportListDropdowntype, data);
+        fadeOut();
+      }
+    };
+
     useEffect((): void => {
       setSelectedDropdownIndex(null);
       let filteredPopular = popularAirportList;
@@ -179,19 +192,6 @@ const AirportListDropdown = React.forwardRef<
         document.removeEventListener("keydown", handleKeyDown);
       };
     }, [searchKey, selectedDropdownIndex, matchAirportList]);
-
-    const handleEnter = (): void => {
-      if (
-        selectedDropdownIndex !== null &&
-        typeof selectedDropdownIndex === "number"
-      ) {
-        const data = matchAirportList.popular.concat(matchAirportList.more)[
-          selectedDropdownIndex
-        ];
-        handleChange(airportListDropdowntype, data);
-        fadeOut();
-      }
-    };
 
     const handleClick = (event: MouseEvent): void => {
       event.stopPropagation();

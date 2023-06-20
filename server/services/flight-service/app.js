@@ -16,60 +16,120 @@ const { Op } = require("sequelize");
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(router);
+// app.use(router);
 
-// app.get("/", async (req, res) => {
-//   try {
-//     // Call the Amadeus API to retrieve the list of all cities and airports
-//     const response = await amadeus.referenceData.locations.get({
-//       subType: "CITY,AIRPORT",
-//       keyword: "Los Angeles",
-//     });
+app.get("/multi-search", async (req, res) => {
+  try {
+    const requestBody = {
+      originDestinations: [
+        {
+          id: "1",
+          originLocationCode: "MAD",
+          destinationLocationCode: "PAR",
+          departureDateTimeRange: {
+            date: "2023-07-06",
+          },
+        },
+        {
+          id: "2",
+          originLocationCode: "PAR",
+          destinationLocationCode: "MUC",
+          departureDateTimeRange: {
+            date: "2023-07-08",
+          },
+        },
+        {
+          id: "3",
+          originLocationCode: "MUC",
+          destinationLocationCode: "AMS",
+          departureDateTimeRange: {
+            date: "2023-07-10",
+          },
+        },
+        {
+          id: "4",
+          originLocationCode: "AMS",
+          destinationLocationCode: "MAD",
+          departureDateTimeRange: {
+            date: "2023-07-17",
+          },
+        },
+      ],
+      travelers: [
+        {
+          id: "1",
+          travelerType: "ADULT",
+          fareOptions: ["STANDARD"],
+        },
+      ],
+      sources: ["GDS"],
+      searchCriteria: {
+        maxFlightOffers: 1,
+      },
+    };
 
-//     // Print the list of cities and airports
-//     console.log(response.data);
-//   } catch (error) {
-//     console.log(error);
-//   }
-//   // amadeus.referenceData.locations
-//   //   .get({
-//   //     keyword: "Los Angeles",
-//   //     subType: "CITY,AIRPORT",
-//   //   })
-//   //   .then((response) => {
-//   //     const location = response.data[0];
-//   //     const originLocationCode =
-//   //       location.type === "city"
-//   //         ? location.address.cityCode
-//   //         : location.iataCode;
-//   //     console.log(location, originLocationCode);
-//   //     return amadeus.referenceData.locations
-//   //       .get({
-//   //         keyword: "New York",
-//   //         subType: "CITY,AIRPORT",
-//   //       })
-//   //       .then((response) => {
-//   //         const location = response.data[0];
-//   //         const destinationLocationCode =
-//   //           location.type === "city"
-//   //             ? location.address.cityCode
-//   //             : location.iataCode;
+    const response = await amadeus.shopping.flightOffersSearch.post(
+      JSON.stringify(requestBody)
+    );
 
-//   //         return amadeus.shopping.flightOffersSearch.get({
-//   //           originLocationCode: originLocationCode,
-//   //           destinationLocationCode: destinationLocationCode,
-//   //           departureDate: "2023-04-01",
-//   //           adults: 1,
-//   //         });
-//   //       });
-//   //   })
-//   // .then((response) => {
-//   //   console.log();
-//   // })
-//   // .catch((error) => {
-//   //   console.log(error.response);
-//   // });
-// });
+    // Handle the response
+    const flightOffers = response.data;
+
+    res.status(200).json(flightOffers);
+  } catch (error) {
+    console.error("Error searching flight offers:", error);
+  }
+  // try {
+  //   // Call the Amadeus API to retrieve the list of all cities and airports
+  //   const response = await amadeus.referenceData.locations.get({
+  //     subType: "CITY,AIRPORT",
+  //     keyword: "Los Angeles",
+  //   });
+
+  //   // Print the list of cities and airports
+  //   console.log(response.data);
+  // } catch (error) {
+  //   console.log(error);
+  // }
+  // amadeus.referenceData.locations
+  //   .get({
+  //     keyword: "Los Angeles",
+  //     subType: "CITY,AIRPORT",
+  //   })
+  //   .then((response) => {
+  //     const location = response.data[0];
+  //     const originLocationCode =
+  //       location.type === "city"
+  //         ? location.address.cityCode
+  //         : location.iataCode;
+  //     console.log(location, originLocationCode);
+  //     return amadeus.referenceData.locations
+  //       .get({
+  //         keyword: "New York",
+  //         subType: "CITY,AIRPORT",
+  //       })
+  //       .then((response) => {
+  //         const location = response.data[0];
+  //         const destinationLocationCode =
+  //           location.type === "city"
+  //             ? location.address.cityCode
+  //             : location.iataCode;
+
+  //         return amadeus.shopping.flightOffersSearch.get({
+  //           originLocationCode: originLocationCode,
+  //           destinationLocationCode: destinationLocationCode,
+  //           departureDate: "2023-04-01",
+  //           adults: 1,
+  //         });
+  //       });
+  //   })
+  // .then((response) => {
+  //   console.log();
+  // })
+  // .catch((error) => {
+  //   console.log(error.response);
+  // });
+});
 
 // app.get("/airport-list-popular", async (request, response) => {
 //   try {

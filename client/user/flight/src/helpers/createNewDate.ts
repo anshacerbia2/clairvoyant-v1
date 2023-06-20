@@ -10,6 +10,10 @@ export const dateToStringWithSlash = (date: Date): string => {
   return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
 };
 
+export const dateToStringWithDash = (date: Date): string => {
+  return `${date.getDate()}-${date.getMonth() + 1}-${date.getFullYear()}`;
+};
+
 export const dateToStringAmadeus = (date: Date): string => {
   return `${date.getFullYear()}-${
     date.getMonth() + 1 > 9 ? date.getMonth() + 1 : "0" + (date.getMonth() + 1)
